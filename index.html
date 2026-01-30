@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spacewar! (1962) - JavaScript Remake</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0e27;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: #ffffff;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-align: center;
+            background: linear-gradient(45deg, #00BFFF, #FF1493);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #gameCanvas {
+            border: 3px solid #1a1f3a;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.3);
+            display: block;
+        }
+
+        .info {
+            margin-top: 20px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+            max-width: 1200px;
+            line-height: 1.6;
+        }
+
+        .info p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🚀 SPACEWAR! 🚀</h1>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="info">
+        <p><strong>Cíl:</strong> Poraz protihráče pomocí střel a vyhni se gravitaci slunce!</p>
+        <p><strong>Hráč 1:</strong> W = plyn | A/D = otáčení | S = střelba</p>
+        <p><strong>Hráč 2:</strong> ↑ = plyn | ←/→ = otáčení | Pravý Ctrl = střelba</p>
+    </div>
+
+    <!-- Load all game modules -->
+    <script src="Vector2.js"></script>
+    <script src="Sun.js"></script>
+    <script src="Bullet.js"></script>
+    <script src="Ship.js"></script>
+    <script src="Input.js"></script>
+    <script src="Game.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>
