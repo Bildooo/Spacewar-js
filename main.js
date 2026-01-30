@@ -10,6 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     game.start();
 
     console.log('Spacewar! started');
-    console.log('Player 1: W=Thrust, A/D=Rotate, S=Shoot');
+    console.log('Player 1: W=Thrust, A/D=Rotate, V=Shoot');
     console.log('Player 2: ↑=Thrust, ←/→=Rotate, RCtrl=Shoot');
 });

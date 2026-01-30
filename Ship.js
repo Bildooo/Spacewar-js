@@ -14,11 +14,11 @@ class Ship {
         this.color = color;
 
         // Control parameters
-        this.thrustPower = 0.05;
+        this.thrustPower = 0.07;
         this.rotationSpeed = 0.05;
 
         // State
-        this.lives = 3;
+        this.lives = 10;
         this.active = true;
         this.respawnTimer = 0;
         this.respawnDelay = 120; // Frames
@@ -32,17 +32,18 @@ class Ship {
         this.shootCooldownMax = 30; // Frames between shots
     }
 
-    /**
-     * Apply thrust in the direction the ship is facing
-     */
     thrust() {
         if (!this.active) return;
 
         const thrustVector = Vector2.fromAngle(this.angle);
         thrustVector.multiply(this.thrustPower);
         this.velocity.add(thrustVector);
-        if (this.velocity > 3) this.velocity = 3;
 
+        // Limit maximum velocity
+        const maxSpeed = 2.25;
+        if (this.velocity.magnitude() > maxSpeed) {
+            this.velocity.normalize().multiply(maxSpeed);
+        }
     }
 
     /**

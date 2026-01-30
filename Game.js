@@ -12,6 +12,10 @@ class Game {
         this.canvas.width = 1200;
         this.canvas.height = 800;
 
+        // Game state
+        this.state = 'menu'; // 'menu', 'playing', 'gameOver'
+        this.gameMode = null; // 'pvp' or 'ai'
+
         // Game objects
         this.sun = new Sun(
             this.canvas.width / 2,
@@ -42,10 +46,13 @@ class Game {
         // Input system
         this.input = new Input();
 
+        // AI controller (will be initialized when AI mode is selected)
+        this.ai = null;
+
         // Physics constants
         this.G = 0.5; // Gravitational constant
 
-        // Game state
+        // Game loop state
         this.running = false;
         this.lastFrameTime = 0;
     }
@@ -68,9 +75,17 @@ class Game {
         const deltaTime = timestamp - this.lastFrameTime;
         this.lastFrameTime = timestamp;
 
-        // Update and render
-        this.update();
-        this.render();
+        // Update and render based on game state
+        if (this.state === 'menu') {
+            this.renderMenu();
+            this.handleMenuInput();
+        } else if (this.state === 'playing') {
+            this.update();
+            this.render();
+        } else if (this.state === 'gameOver') {
+            this.render();
+            this.handleGameOverInput();
+        }
 
         // Continue loop
         requestAnimationFrame((t) => this.gameLoop(t));
@@ -82,7 +97,7 @@ class Game {
     update() {
         // Get input for both ships
         const input1 = this.input.getShip1Input();
-        const input2 = this.input.getShip2Input();
+        const input2 = this.gameMode === 'ai' ? this.ai.update() : this.input.getShip2Input();
 
         // Handle Ship 1 input
         if (input1.rotateLeft) this.ship1.rotate(-1);
@@ -228,16 +243,27 @@ class Game {
         this.ship1.renderUI(this.ctx, 20, 30);
         this.ship2.renderUI(this.ctx, this.canvas.width - 180, 30);
 
-        // Controls help
-        this.ctx.save();
-        this.ctx.fillStyle = '#888888';
-        this.ctx.font = '12px monospace';
-        this.ctx.fillText('Player 1: W=Thrust A/D=Rotate S=Shoot', 20, this.canvas.height - 40);
-        this.ctx.fillText('Player 2: ↑=Thrust ←/→=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
-        this.ctx.restore();
+        // Controls help (only in PvP mode)
+        if (this.gameMode === 'pvp') {
+            this.ctx.save();
+            this.ctx.fillStyle = '#888888';
+            this.ctx.font = '12px monospace';
+            this.ctx.fillText('Player 1: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 40);
+            this.ctx.fillText('Player 2: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
+            this.ctx.restore();
+        } else if (this.gameMode === 'ai') {
+            this.ctx.save();
+            this.ctx.fillStyle = '#888888';
+            this.ctx.font = '12px monospace';
+            this.ctx.fillText('Player: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 40);
+            this.ctx.restore();
+        }
 
         // Check for game over
         if (this.ship1.lives <= 0 || this.ship2.lives <= 0) {
+            if (this.state === 'playing') {
+                this.state = 'gameOver';
+            }
             this.renderGameOver();
         }
     }
@@ -269,8 +295,98 @@ class Game {
         this.ctx.fillText(winner, this.canvas.width / 2, this.canvas.height / 2);
 
         this.ctx.font = '20px monospace';
-        this.ctx.fillText('Refresh page to play again', this.canvas.width / 2, this.canvas.height / 2 + 50);
+        this.ctx.fillText('Stiskni MEZERNIK pro restart', this.canvas.width / 2, this.canvas.height / 2 + 50);
 
         this.ctx.restore();
+    }
+
+    /**
+     * Render main menu
+     */
+    renderMenu() {
+        // Clear canvas
+        this.ctx.fillStyle = '#000814';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Draw stars
+        this.drawStars();
+
+        // Title
+        this.ctx.save();
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = 'bold 72px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('SPACEWAR!', this.canvas.width / 2, this.canvas.height / 3);
+
+        // Menu options
+        this.ctx.font = 'bold 32px monospace';
+        this.ctx.fillStyle = '#00BFFF';
+        this.ctx.fillText('Stiskni 1: Hrac vs Hrac', this.canvas.width / 2, this.canvas.height / 2);
+
+        this.ctx.fillStyle = '#FF1493';
+        this.ctx.fillText('Stiskni 2: Hrac vs Pocitac', this.canvas.width / 2, this.canvas.height / 2 + 60);
+
+        // Instructions
+        this.ctx.font = '16px monospace';
+        this.ctx.fillStyle = '#888888';
+        this.ctx.fillText('Hrac 1: W=Plyn A/D=Otaceni V=Strelba', this.canvas.width / 2, this.canvas.height - 100);
+        this.ctx.fillText('Hrac 2: \u2191=Plyn \u2190/\u2192=Otaceni Pravy Ctrl=Strelba', this.canvas.width / 2, this.canvas.height - 70);
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Handle menu input
+     */
+    handleMenuInput() {
+        if (this.input.isKeyPressed('1') || this.input.isKeyPressed('Digit1')) {
+            this.startGame('pvp');
+        } else if (this.input.isKeyPressed('2') || this.input.isKeyPressed('Digit2')) {
+            this.startGame('ai');
+        }
+    }
+
+    /**
+     * Start the game with selected mode
+     */
+    startGame(mode) {
+        this.gameMode = mode;
+        this.state = 'playing';
+
+        // Reset ships
+        this.ship1.lives = 10;
+        this.ship1.position.copy(this.ship1.startPosition);
+        this.ship1.velocity.set(0, 0);
+        this.ship1.angle = this.ship1.startAngle;
+        this.ship1.active = true;
+        this.ship1.respawnTimer = 0;
+
+        this.ship2.lives = 10;
+        this.ship2.position.copy(this.ship2.startPosition);
+        this.ship2.velocity.set(0, 0);
+        this.ship2.angle = this.ship2.startAngle;
+        this.ship2.active = true;
+        this.ship2.respawnTimer = 0;
+
+        // Clear bullets
+        this.bullets = [];
+
+        // Initialize AI if needed
+        if (mode === 'ai') {
+            this.ai = new AI(this.ship2, this.ship1, this.sun);
+            this.ai.setDifficulty('medium');
+        } else {
+            this.ai = null;
+        }
+    }
+
+    /**
+     * Handle game over input
+     */
+    handleGameOverInput() {
+        if (this.input.isKeyPressed(' ') || this.input.isKeyPressed('Space')) {
+            this.state = 'menu';
+            this.gameMode = null;
+        }
     }
 }
