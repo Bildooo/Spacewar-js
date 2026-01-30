@@ -218,21 +218,42 @@ class Game {
     }
 
     /**
-     * Draw simple star background
+     * Draw enhanced star background with twinkling
      */
     drawStars() {
-        this.ctx.fillStyle = '#FFFFFF';
-        // Use deterministic positions based on canvas size
-        const seed = 12345;
-        for (let i = 0; i < 100; i++) {
-            const x = ((seed * i * 17) % this.canvas.width);
-            const y = ((seed * i * 31) % this.canvas.height);
-            const size = ((i * 7) % 3) * 0.5;
-
-            this.ctx.globalAlpha = 0.3 + ((i % 7) / 10);
-            this.ctx.fillRect(x, y, size, size);
+        // Initialize stars if not done yet
+        if (!this.stars) {
+            this.stars = [];
+            for (let i = 0; i < 200; i++) {
+                this.stars.push({
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random(),
+                    twinkleSpeed: Math.random() * 0.05 + 0.01,
+                    twinkleOffset: Math.random() * Math.PI * 2
+                });
+            }
+            this.starTime = 0;
         }
-        this.ctx.globalAlpha = 1;
+
+        this.starTime += 0.05;
+
+        this.ctx.save();
+        for (const star of this.stars) {
+            // Calculate twinkling brightness
+            const twinkle = Math.sin(this.starTime * star.twinkleSpeed + star.twinkleOffset);
+            const brightness = star.brightness * (0.5 + twinkle * 0.5);
+
+            this.ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+            this.ctx.shadowBlur = star.size * 2;
+            this.ctx.shadowColor = '#FFFFFF';
+
+            this.ctx.beginPath();
+            this.ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.restore();
     }
 
     /**
