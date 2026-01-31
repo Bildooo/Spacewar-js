@@ -18,7 +18,7 @@ class Ship {
         this.rotationSpeed = 0.05;
 
         // State
-        this.lives = 10;
+        this.lives = 5;
         this.active = true;
         this.respawnTimer = 0;
         this.respawnDelay = 120; // Frames

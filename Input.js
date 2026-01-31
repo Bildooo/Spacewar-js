@@ -40,10 +40,10 @@ class Input {
      */
     getShip1Input() {
         return {
-            rotateLeft: this.isKeyPressed('a'),
-            rotateRight: this.isKeyPressed('d'),
-            thrust: this.isKeyPressed('w'),
-            shoot: this.isKeyPressed('v')
+            rotateLeft: this.isKeyPressed('ArrowLeft'),
+            rotateRight: this.isKeyPressed('ArrowRight'),
+            thrust: this.isKeyPressed('ArrowUp'),
+            shoot: this.isKeyPressed('ControlRight') || this.isKeyPressed('Control')
         };
     }
 
@@ -52,10 +52,10 @@ class Input {
      */
     getShip2Input() {
         return {
-            rotateLeft: this.isKeyPressed('ArrowLeft'),
-            rotateRight: this.isKeyPressed('ArrowRight'),
-            thrust: this.isKeyPressed('ArrowUp'),
-            shoot: this.isKeyPressed('ControlRight') || this.isKeyPressed('Control')
+            rotateLeft: this.isKeyPressed('a'),
+            rotateRight: this.isKeyPressed('d'),
+            thrust: this.isKeyPressed('w'),
+            shoot: this.isKeyPressed('v')
         };
     }
 }

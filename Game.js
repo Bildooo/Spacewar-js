@@ -33,22 +33,22 @@ class Game {
             30    // radius
         );
 
-        // Ship 1 (Blue) - starts on left side
+        // Ship 1 (Blue) - starts on right side
         this.ship1 = new Ship(
-            this.canvas.width / 2 - 250,  // Left of center
-            this.canvas.height / 2,
-            0,  // Facing right
-            1,  // id
-            '#00BFFF' // color
-        );
-
-        // Ship 2 (Pink) - starts on right side
-        this.ship2 = new Ship(
             this.canvas.width / 2 + 250,  // Right of center
             this.canvas.height / 2,
             Math.PI,  // Facing left
+            1,  // id
+            '#00BFFF' // blue
+        );
+
+        // Ship 2 (Pink) - starts on left side
+        this.ship2 = new Ship(
+            this.canvas.width / 2 - 250,  // Left of center
+            this.canvas.height / 2,
+            0,  // Facing right
             2,  // id
-            '#FF1493' // color
+            '#FF1493' // pink
         );
 
         this.bullets = [];
@@ -332,14 +332,14 @@ class Game {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player 1: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 20);
-            this.ctx.fillText('Player 2: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 5);
+            this.ctx.fillText('Player 1: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
+            this.ctx.fillText('Player 2: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 5);
             this.ctx.restore();
         } else if (this.gameMode === 'ai') {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 20);
+            this.ctx.fillText('Player: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
             this.ctx.restore();
         }
 
@@ -437,14 +437,14 @@ class Game {
         this.ctx.fillText('PLAYER 1 CONTROLS:', this.canvas.width / 2, 450);
         this.ctx.font = '18px monospace';
         this.ctx.fillStyle = '#88CCFF';
-        this.ctx.fillText('W = Thrust | A/D = Rotate | V = Shoot', this.canvas.width / 2, 475);
+        this.ctx.fillText('\u2191 = Thrust | \u2190/\u2192 = Rotate | Right Ctrl = Shoot', this.canvas.width / 2, 475);
 
         this.ctx.font = 'bold 22px; monospace';
         this.ctx.fillStyle = '#FF1493';
         this.ctx.fillText('PLAYER 2 CONTROLS:', this.canvas.width / 2, 515);
         this.ctx.font = '18px monospace';
         this.ctx.fillStyle = '#FF88CC';
-        this.ctx.fillText('↑ = Thrust | ←/→ = Rotate | Right Ctrl = Shoot', this.canvas.width / 2, 540);
+        this.ctx.fillText('W = Thrust | A/D = Rotate | V = Shoot', this.canvas.width / 2, 540);
 
         // Sound toggle
         this.ctx.font = '20px monospace';
@@ -496,14 +496,14 @@ class Game {
         this.state = 'playing';
 
         // Reset ships
-        this.ship1.lives = 10;
+        this.ship1.lives = 5;
         this.ship1.position.copy(this.ship1.startPosition);
         this.ship1.velocity.set(0, 0);
         this.ship1.angle = this.ship1.startAngle;
         this.ship1.active = true;
         this.ship1.respawnTimer = 0;
 
-        this.ship2.lives = 10;
+        this.ship2.lives = 5;
         this.ship2.position.copy(this.ship2.startPosition);
         this.ship2.velocity.set(0, 0);
         this.ship2.angle = this.ship2.startAngle;
