@@ -21,11 +21,26 @@ class FuelCanister {
         this.angle += this.rotationSpeed;
         this.pulseTimer += 0.05;
 
-        // Wrap around screen
-        if (this.position.x < 0) this.position.x += canvasWidth;
-        if (this.position.x > canvasWidth) this.position.x -= canvasWidth;
-        if (this.position.y < 0) this.position.y += canvasHeight;
-        if (this.position.y > canvasHeight) this.position.y -= canvasHeight;
+        // Circular movement constraint (bounce off walls)
+        const dx = this.position.x - canvasWidth / 2;
+        const dy = this.position.y - canvasHeight / 2;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const playRadius = canvasHeight / 2 - 20; // Slightly smaller than play area (10) for buffer
+
+        if (dist > playRadius) {
+            // Calculate normal vector at collision point
+            const normalX = dx / dist;
+            const normalY = dy / dist;
+
+            // Reflect velocity: result = v - 2 * (v . n) * n
+            const dotProduct = this.velocity.x * normalX + this.velocity.y * normalY;
+            this.velocity.x -= 2 * dotProduct * normalX;
+            this.velocity.y -= 2 * dotProduct * normalY;
+
+            // Push back inside
+            this.position.x = canvasWidth / 2 + normalX * playRadius;
+            this.position.y = canvasHeight / 2 + normalY * playRadius;
+        }
     }
 
     render(ctx) {

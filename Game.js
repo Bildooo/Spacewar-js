@@ -230,16 +230,16 @@ class Game {
                 bullet.checkCollision(this.ship1.position, this.ship1.radius)) {
                 this.ship1.die(this.soundManager);
                 this.ship2.resetToStart(); // Reset P2
-                this.bullets.splice(i, 1);
-                continue;
+                this.bullets = []; // Clear bullets on round end
+                break; // Stop processing bullets
             }
 
             if (bullet.ownerId !== this.ship2.id &&
                 bullet.checkCollision(this.ship2.position, this.ship2.radius)) {
                 this.ship2.die(this.soundManager);
                 this.ship1.resetToStart(); // Reset P1
-                this.bullets.splice(i, 1);
-                continue;
+                this.bullets = []; // Clear bullets on round end
+                break; // Stop processing bullets
             }
         }
 
@@ -251,10 +251,12 @@ class Game {
         if (this.sun.isColliding(this.ship1.position, this.ship1.radius)) {
             this.ship1.die(this.soundManager);
             this.ship2.resetToStart(); // Reset P2
+            this.bullets = []; // Clear bullets
         }
         if (this.sun.isColliding(this.ship2.position, this.ship2.radius)) {
             this.ship2.die(this.soundManager);
             this.ship1.resetToStart(); // Reset P1
+            this.bullets = []; // Clear bullets
         }
 
         // Check ship-to-ship collision
@@ -264,6 +266,7 @@ class Game {
                 // Both ships explode!
                 this.ship1.die(this.soundManager);
                 this.ship2.die(this.soundManager);
+                this.bullets = []; // Clear bullets
             }
         }
 
@@ -356,11 +359,13 @@ class Game {
                 asteroid.position.distanceTo(this.ship1.position) < asteroid.radius + this.ship1.radius) {
                 this.ship1.die(this.soundManager);
                 this.ship2.resetToStart();
+                this.bullets = []; // Clear bullets
             }
             if (this.ship2.active && !this.ship2.shieldActive &&
                 asteroid.position.distanceTo(this.ship2.position) < asteroid.radius + this.ship2.radius) {
                 this.ship2.die(this.soundManager);
                 this.ship1.resetToStart();
+                this.bullets = []; // Clear bullets
             }
 
             // Collision with bullets (Bullet destroys asteroid)

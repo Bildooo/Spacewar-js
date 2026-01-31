@@ -22,6 +22,8 @@ class Bullet {
         // Bullet lifetime and trail
         this.lifetime = 200; // Frames before disappearing
         this.maxLifetime = 200;
+
+        // Trail system
         this.trail = [];
         this.maxTrailLength = 5;
     }
@@ -41,12 +43,25 @@ class Bullet {
     update(canvasWidth, canvasHeight) {
         if (!this.active) return;
 
+        // Add current position to trail BEFORE moving
+        this.trail.push(this.position.clone());
+        if (this.trail.length > this.maxTrailLength) {
+            this.trail.shift();
+        }
+
         // Update position
         this.position.add(this.velocity);
 
         // Age the bullet
-        this.age++;
-        if (this.age >= this.lifetime) {
+        this.age++; // Note: age was undefined in previous logic, initializing implicitly via ++ works but let's be safe if it was checked against lifetime
+        // Actually constructor had lifetime=200, update had this.age++ (but age undefined). 
+        // Let's fix this logic to assume lifetime decreases or age increases.
+        // Original code had: this.lifetime = 200; and update check: if (this.age >= this.lifetime)
+        // Check constructor again: this.lifetime = 200.
+        // Let's use a decrementing lifetime for simplicity or fix age.
+        // I will use decrementing lifetime to be robust.
+        this.lifetime--;
+        if (this.lifetime <= 0) {
             this.active = false;
         }
 
@@ -84,16 +99,18 @@ class Bullet {
         ctx.save();
 
         // Draw trail
-        for (let i = 0; i < this.trail.length - 1; i++) {
-            const alpha = (i / this.trail.length) * 0.4;
-            ctx.strokeStyle = this.color;
-            ctx.globalAlpha = alpha;
-            ctx.lineWidth = 1.5;
+        if (this.trail.length > 1) {
+            for (let i = 0; i < this.trail.length - 1; i++) {
+                const alpha = (i / this.trail.length) * 0.4;
+                ctx.strokeStyle = this.color;
+                ctx.globalAlpha = alpha;
+                ctx.lineWidth = 1.5;
 
-            ctx.beginPath();
-            ctx.moveTo(this.trail[i].x, this.trail[i].y);
-            ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(this.trail[i].x, this.trail[i].y);
+                ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+                ctx.stroke();
+            }
         }
 
         // Draw bullet as a glowing line in direction of movement

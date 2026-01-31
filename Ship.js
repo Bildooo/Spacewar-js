@@ -32,16 +32,16 @@ class Ship {
         this.shootCooldownMax = 30; // Frames between shots
 
         // Visual effects
-        this.trail = []; // Position history for trail
-        this.maxTrailLength = 15;
         this.explosionParticles = []; // Debris on death
 
         // Advanced features
         this.maxEnergy = 100;
         this.energy = 100;
         this.shieldActive = false;
+        this.shieldActive = false;
+        this.hyperspaceCharges = 3;
         this.hyperspaceCooldown = 0;
-        this.hyperspaceCooldownMax = 180; // 3 seconds
+        this.hyperspaceCooldownMax = 60; // 1 second debounce
 
         // Fuel system
         this.maxFuel = 1000;
@@ -73,9 +73,12 @@ class Ship {
      * Activate hyperspace drive
      */
     hyperspace() {
-        if (!this.active || this.hyperspaceCooldown > 0) return;
+        if (!this.active || this.hyperspaceCooldown > 0 || this.hyperspaceCharges <= 0) return;
 
-        // Reset cooldown
+        // Consume charge
+        this.hyperspaceCharges--;
+
+        // debounce
         this.hyperspaceCooldown = this.hyperspaceCooldownMax;
 
         // 15% chance of mulfunction (explosion)
@@ -175,13 +178,8 @@ class Ship {
         }
 
         // Update position
+        // Update position
         this.position.add(this.velocity);
-
-        // Add to trail
-        this.trail.push(this.position.clone());
-        if (this.trail.length > this.maxTrailLength) {
-            this.trail.shift();
-        }
 
         // Circular wrapping (polar coordinates)
         const dx = this.position.x - canvasWidth / 2;
@@ -222,8 +220,8 @@ class Ship {
         this.active = false;
         this.respawnTimer = this.respawnDelay;
 
-        // Clear trail so it doesn't stay on screen
-        this.trail = [];
+        this.respawnTimer = this.respawnDelay;
+
         this.shieldActive = false;
         this.energy = this.maxEnergy;
 
@@ -307,21 +305,19 @@ class Ship {
         this.position.copy(this.startPosition);
 
         // Clear residuals
-        this.trail = [];
+        // Clear residuals
         this.explosionParticles = [];
         this.energy = this.maxEnergy;
         this.fuel = this.maxFuel;
         this.shieldActive = false;
         this.hyperspaceCooldown = 0;
+        this.hyperspaceCharges = 3; // Reset charges on new round
     }
 
     /**
      * Render the ship
      */
     render(ctx, showThrust = false) {
-        // Render trail first (behind ship)
-        this.renderTrail(ctx);
-
         // Render explosion particles if dead
         if (!this.active) {
             this.renderExplosion(ctx);
@@ -397,30 +393,6 @@ class Ship {
         ctx.restore();
     }
 
-    /**
-     * Render ship trail
-     */
-    renderTrail(ctx) {
-        if (this.trail.length < 2) return;
-
-        ctx.save();
-        for (let i = 0; i < this.trail.length - 1; i++) {
-            const alpha = (i / this.trail.length) * 0.5;
-            const width = (i / this.trail.length) * 3;
-
-            ctx.strokeStyle = this.color;
-            ctx.globalAlpha = alpha;
-            ctx.lineWidth = width;
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = this.color;
-
-            ctx.beginPath();
-            ctx.moveTo(this.trail[i].x, this.trail[i].y);
-            ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
 
     /**
      * Render explosion particles
@@ -452,14 +424,16 @@ class Ship {
     renderUI(ctx, x, y) {
         ctx.save();
         ctx.fillStyle = this.color;
-        ctx.font = '16px monospace';
-        ctx.fillText(`Player ${this.id}: ${this.lives} lives`, x, y);
+
+        // Larger Score/Lives
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText(`Player ${this.id}: ${this.lives}`, x, y);
 
         // Draw Energy Bar
         const barWidth = 100;
         const barHeight = 6;
         const barX = x;
-        const barY = y + 10;
+        const barY = y + 15;
 
         // Shield Label
         ctx.fillStyle = '#AAAAAA';
@@ -475,13 +449,16 @@ class Ship {
         ctx.fillStyle = this.energy > 20 ? '#00FFFF' : '#FF0000';
         ctx.fillRect(barX, barY, barWidth * energyRatio, barHeight);
 
-        // Cooldown indicator for hyperspace (small dot)
-        if (this.hyperspaceCooldown > 0) {
-            ctx.fillStyle = '#FF0000';
-            ctx.fillRect(barX + barWidth + 5, barY, 6, 6);
-        } else {
-            ctx.fillStyle = '#00FF00';
-            ctx.fillRect(barX + barWidth + 5, barY, 6, 6);
+        // Hyperspace Charges (Squares)
+        const squareSize = 8;
+        const spacing = 4;
+        for (let i = 0; i < 3; i++) {
+            if (i < this.hyperspaceCharges) {
+                ctx.fillStyle = '#00FF00'; // Available
+            } else {
+                ctx.fillStyle = '#444444'; // Used
+            }
+            ctx.fillRect(barX + barWidth + 10 + (i * (squareSize + spacing)), barY - 2, squareSize, squareSize);
         }
 
         // Fuel Bar (Yellow) - Only if enabled
