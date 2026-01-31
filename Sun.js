@@ -18,7 +18,7 @@ class Sun {
      * Initialize gravity field particles
      */
     initGravityParticles() {
-        const particleCount = 60; // Increased for better coverage
+        const particleCount = 30; // Increased for better coverage
         const maxDistance = 380; // Will cover most of play area
 
         for (let i = 0; i < particleCount; i++) {
