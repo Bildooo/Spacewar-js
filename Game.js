@@ -448,7 +448,7 @@ class Game {
 
         // Sound toggle
         this.ctx.font = '20px monospace';
-        this.ctx.fillStyle = this.soundManager.isEnabled() ? '#00FF00' : '#FF0000';
+        this.ctx.fillStyle = this.soundManager.isEnabled() ? '#757575ff' : '#FF0000';
         const soundStatus = this.soundManager.isEnabled() ? 'ON' : 'OFF';
         this.ctx.fillText(`Press M: Sound ${soundStatus}`, this.canvas.width / 2, 630);
 
