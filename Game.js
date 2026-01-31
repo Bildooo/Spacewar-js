@@ -15,6 +15,7 @@ class Game {
         // Game state
         this.state = 'menu'; // 'menu', 'playing', 'gameOver'
         this.gameMode = null; // 'pvp' or 'ai'
+        this.aiDifficulty = 'easy'; // 'easy', 'medium', 'hard'
 
         // Game loop state
         this.running = false;
@@ -273,8 +274,13 @@ class Game {
         const input1 = this.input.getShip1Input();
         const input2 = this.input.getShip2Input();
 
+        let ship2Thrust = input2.thrust;
+        if (this.gameMode === 'ai' && this.ai) {
+            ship2Thrust = this.ai.shouldThrust;
+        }
+
         this.ship1.render(this.ctx, input1.thrust);
-        this.ship2.render(this.ctx, input2.thrust);
+        this.ship2.render(this.ctx, ship2Thrust);
 
         // Draw UI
         this.renderUI();
@@ -323,9 +329,15 @@ class Game {
      * Render UI elements
      */
     renderUI() {
-        // Ship status
-        this.ship1.renderUI(this.ctx, 20, 30);
-        this.ship2.renderUI(this.ctx, this.canvas.width - 180, 30);
+        // Ship status - Swapped positions:
+        // Ship 1 (Blue/Arrows) starts Right, so UI is on Right
+        // Ship 2 (Pink/WASD) starts Left, so UI is on Left
+
+        // Ship 2 (Pink) - Left side UI
+        this.ship2.renderUI(this.ctx, 20, 30);
+
+        // Ship 1 (Blue) - Right side UI
+        this.ship1.renderUI(this.ctx, this.canvas.width - 180, 30);
 
         // Controls help (only in PvP mode)
         if (this.gameMode === 'pvp') {
@@ -422,6 +434,9 @@ class Game {
         this.ctx.fillStyle = '#FF1493';
         this.ctx.fillText('Press 2: Player vs Player', this.canvas.width / 2, 200);
 
+        this.ctx.fillStyle = '#CCCCCC';
+        this.ctx.fillText(`Press 3: Difficulty ${this.aiDifficulty.toUpperCase()}`, this.canvas.width / 2, 240);
+
 
         // Game objective
         this.ctx.font = 'bold 32px monospace';
@@ -483,6 +498,8 @@ class Game {
             this.startGame('ai');
         } else if (this.input.isKeyPressed('2') || this.input.isKeyPressed('Digit2')) {
             this.startGame('pvp');
+        } else if (this.input.isKeyPressed('3') || this.input.isKeyPressed('Digit3')) {
+            this.cycleDifficulty();
         } else if (this.input.isKeyPressed('m') || this.input.isKeyPressed('M')) {
             this.soundManager.toggle();
         }
@@ -516,9 +533,27 @@ class Game {
         // Initialize AI if needed
         if (mode === 'ai') {
             this.ai = new AI(this.ship2, this.ship1, this.sun);
-            this.ai.setDifficulty('medium');
+            this.ai.setDifficulty(this.aiDifficulty);
         } else {
             this.ai = null;
+        }
+    }
+
+    /**
+     * Cycle through difficulty levels
+     */
+    cycleDifficulty() {
+        // Debounce input slightly to prevent cycling too fast
+        const now = Date.now();
+        if (this.lastDifficultyChange && now - this.lastDifficultyChange < 200) return;
+        this.lastDifficultyChange = now;
+
+        if (this.aiDifficulty === 'easy') {
+            this.aiDifficulty = 'medium';
+        } else if (this.aiDifficulty === 'medium') {
+            this.aiDifficulty = 'hard';
+        } else {
+            this.aiDifficulty = 'easy';
         }
     }
 

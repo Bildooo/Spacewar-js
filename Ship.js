@@ -84,7 +84,7 @@ class Ship {
                 this.respawn();
             }
             // Update explosion particles
-            this.updateExplosionParticles();
+            this.updateExplosion();
             return;
         }
 
@@ -144,26 +144,41 @@ class Ship {
             soundManager.play('explosion');
         }
 
-        // Create explosion particles
-        this.createExplosion();
+        // Create explosion particles at current position (explicitly passed)
+        this.createExplosion(this.position.x, this.position.y);
+
+        // Then reset position (will be handled in update based on respawn timer)
+        // Note: we don't reset position immediately to avoid glitching, logic is in update()
+        // But active=false prevents drawing/updating physics
     }
 
     /**
      * Create explosion effect
      */
-    createExplosion() {
-        const particleCount = 12;
+    /**
+     * Create explosion effect
+     */
+    createExplosion(x, y) {
+        // Use provided coordinates or fall back to current position
+        const originX = x !== undefined ? x : this.position.x;
+        const originY = y !== undefined ? y : this.position.y;
+
+        const particleCount = 20;
+        this.explosionParticles = [];
+
         for (let i = 0; i < particleCount; i++) {
             const angle = (Math.PI * 2 * i) / particleCount;
-            const speed = 2 + Math.random() * 2;
+            const speed = 2 + Math.random() * 3;
+
             this.explosionParticles.push({
-                x: this.position.x,
-                y: this.position.y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 30, // 0.5 seconds at 60fps
-                maxLife: 30,
-                length: 5 + Math.random() * 5
+                x: originX,
+                y: originY,
+                vx: Math.cos(angle) * speed + (Math.random() - 0.5),
+                vy: Math.sin(angle) * speed + (Math.random() - 0.5),
+                life: 1.0,
+                maxLife: 1.0,
+                decay: 0.02 + Math.random() * 0.03,
+                length: 5 + Math.random() * 10
             });
         }
     }
@@ -171,12 +186,12 @@ class Ship {
     /**
      * Update explosion particles
      */
-    updateExplosionParticles() {
+    updateExplosion() {
         for (let i = this.explosionParticles.length - 1; i >= 0; i--) {
             const p = this.explosionParticles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.life--;
+            p.life -= p.decay;
 
             if (p.life <= 0) {
                 this.explosionParticles.splice(i, 1);
@@ -190,10 +205,13 @@ class Ship {
     respawn() {
         if (this.lives <= 0) return;
 
-        this.position.copy(this.startPosition);
+        this.active = true;
+        this.respawnTimer = 0;
         this.velocity.set(0, 0);
         this.angle = this.startAngle;
-        this.active = true;
+        this.position.copy(this.startPosition);
+
+        // Clear residuals
         this.trail = [];
         this.explosionParticles = [];
     }
@@ -227,7 +245,7 @@ class Ship {
             ctx.shadowBlur = 10;
             ctx.beginPath();
             ctx.moveTo(-this.radius, this.radius * 0.5);
-            ctx.lineTo(-this.radius * 1.8, 0);
+            ctx.lineTo(-this.radius * 5.0, 0); // Extended flame length (2.5 -> 5.0)
             ctx.lineTo(-this.radius, -this.radius * 0.5);
             ctx.closePath();
             ctx.fill();

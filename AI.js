@@ -22,6 +22,7 @@ class AI {
         this.aimAccuracy = 0.9; // 0-1, how accurate the AI aims
         this.reactionTime = 15; // Frames of delay in reactions
         this.shootProbability = 0.3; // Chance to shoot when aimed
+        this.shootAngleThreshold = 0.3; // How precise aiming needs to be to shoot
         this.safeDistanceFromSun = 250; // Minimum distance from sun
         this.criticalDistanceFromSun = 200; // Distance at which to start worrying
     }
@@ -120,9 +121,9 @@ class AI {
             this.shouldThrust = Math.random() > 0.5;
         }
 
-        // Shoot if aimed roughly at target
+        // Shoot if aimed roughly at target - use difficulty threshold
         const currentAngleDiff = this.getAngleDifference(this.ship.angle, angleToTarget);
-        this.shouldShoot = Math.abs(currentAngleDiff) < 0.3 && Math.random() < this.shootProbability;
+        this.shouldShoot = Math.abs(currentAngleDiff) < this.shootAngleThreshold && Math.random() < this.shootProbability;
     }
 
     /**
@@ -169,19 +170,22 @@ class AI {
     setDifficulty(level) {
         switch (level) {
             case 'easy':
-                this.aimAccuracy = 0.6;
-                this.updateInterval = 15;
-                this.shootProbability = 0.2;
+                this.aimAccuracy = 0.7;
+                this.updateInterval = 12;
+                this.shootProbability = 0.25;
+                this.shootAngleThreshold = 0.3; // Strict aiming
                 break;
-            case 'medium':
-                this.aimAccuracy = 0.8;
-                this.updateInterval = 10;
-                this.shootProbability = 0.3;
+            case 'medium': // Previous default behavior
+                this.aimAccuracy = 0.85;
+                this.updateInterval = 8;
+                this.shootProbability = 0.5;
+                this.shootAngleThreshold = 0.5; // Looser aiming
                 break;
             case 'hard':
-                this.aimAccuracy = 0.95;
-                this.updateInterval = 5;
-                this.shootProbability = 0.4;
+                this.aimAccuracy = 0.98;
+                this.updateInterval = 4;
+                this.shootProbability = 0.8;
+                this.shootAngleThreshold = 0.8; // Aggressive spray
                 break;
         }
     }
