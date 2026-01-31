@@ -55,10 +55,10 @@
 </head>
 
 <body>
-    <h1>🚀 SPACEWAR! 🚀</h1>
+    <!-- <h1>🚀 SPACEWAR! 🚀</h1> -->
     <canvas id="gameCanvas"></canvas>
 
-    <div class="info">
+    <div class="info" style="display: none;">
         <p><strong>Cíl:</strong> Poraz protihráče pomocí střel a vyhni se gravitaci slunce!</p>
         <p><strong>Hráč 1:</strong> W = plyn | A/D = otáčení | S = střelba</p>
         <p><strong>Hráč 2:</strong> ↑ = plyn | ←/→ = otáčení | Pravý Ctrl = střelba</p>
@@ -71,6 +71,7 @@
     <script src="Ship.js"></script>
     <script src="Input.js"></script>
     <script src="AI.js"></script>
+    <script src="SoundManager.js"></script>
     <script src="Game.js"></script>
     <script src="main.js"></script>
 </body>

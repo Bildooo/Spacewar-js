@@ -105,31 +105,24 @@ class Ship {
     }
 
     /**
-     * Attempt to shoot a bullet
+     * Shoot a bullet
      */
     shoot() {
-        if (!this.active || this.shootCooldown > 0) return null;
+        if (this.shootCooldown > 0 || !this.active) return null;
 
-        // Create bullet at ship position with ship velocity + bullet velocity
-        const bulletVelocity = Vector2.fromAngle(this.angle);
-        bulletVelocity.multiply(5); // Bullet speed relative to ship
-        bulletVelocity.add(this.velocity); // Add ship's velocity
-
-        const bullet = new Bullet(
-            this.position.x,
-            this.position.y,
-            bulletVelocity,
-            this.id
-        );
+        // Create bullet at ship's nose
+        const bulletX = this.position.x + Math.cos(this.angle) * this.radius;
+        const bulletY = this.position.y + Math.sin(this.angle) * this.radius;
 
         this.shootCooldown = this.shootCooldownMax;
-        return bullet;
+
+        return new Bullet(bulletX, bulletY, this.angle, this.velocity, this.id, this.color);
     }
 
     /**
      * Handle collision with sun or other objects
      */
-    die() {
+    die(soundManager = null) {
         if (!this.active) return;
 
         this.lives--;
@@ -138,6 +131,11 @@ class Ship {
 
         // Clear trail so it doesn't stay on screen
         this.trail = [];
+
+        // Play explosion sound
+        if (soundManager) {
+            soundManager.play('explosion');
+        }
 
         // Create explosion particles
         this.createExplosion();
@@ -236,9 +234,20 @@ class Ship {
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(this.radius, 0); // Nose
-        ctx.lineTo(-this.radius, this.radius); // Bottom left
-        ctx.lineTo(-this.radius * 0.5, 0); // Back center
-        ctx.lineTo(-this.radius, -this.radius); // Top left
+
+        // Different shapes for each ship
+        if (this.id === 1) {
+            // Ship 1: Pointed tail (arrow shape)
+            ctx.lineTo(-this.radius, this.radius); // Bottom left
+            ctx.lineTo(-this.radius * 0.3, 0); // Tail point (goes outward)
+            ctx.lineTo(-this.radius, -this.radius); // Top left
+        } else {
+            // Ship 2: Classic triangle with indent
+            ctx.lineTo(-this.radius, this.radius); // Bottom left
+            ctx.lineTo(-this.radius * 0.5, 0); // Back center (indent)
+            ctx.lineTo(-this.radius, -this.radius); // Top left
+        }
+
         ctx.closePath();
         ctx.stroke();
         ctx.globalAlpha = 0.3;

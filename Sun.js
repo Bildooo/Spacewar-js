@@ -8,6 +8,51 @@ class Sun {
         this.position = new Vector2(x, y);
         this.mass = mass;
         this.radius = radius;
+
+        // Gravitational field visualization particles
+        this.gravityParticles = [];
+        this.initGravityParticles();
+    }
+
+    /**
+     * Initialize gravity field particles
+     */
+    initGravityParticles() {
+        const particleCount = 50; // Reduced from 80
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 50 + Math.random() * 200; // 50-250 pixels from sun
+
+            this.gravityParticles.push({
+                angle: angle,
+                distance: distance,
+                baseSpeed: 0.2 + Math.random() * 0.3,
+                size: 1 + Math.random() * 2,
+                opacity: 0.3 + Math.random() * 0.4
+            });
+        }
+    }
+
+    /**
+     * Update gravity particles
+     */
+    updateGravityParticles() {
+        for (const particle of this.gravityParticles) {
+            // Calculate acceleration based on distance (gravity gets stronger closer to sun)
+            // Using inverse square for realistic gravity: closer = faster
+            const normalizedDist = particle.distance / 250; // 0-1 range
+            const acceleration = 1 + (1 - normalizedDist) * 3; // 1x to 4x speed
+            const currentSpeed = particle.baseSpeed * acceleration;
+
+            // Pull particle towards sun
+            particle.distance -= currentSpeed;
+
+            // Reset particle when it gets too close
+            if (particle.distance < 50) {
+                particle.distance = 250;
+                particle.angle = Math.random() * Math.PI * 2;
+            }
+        }
     }
 
     /**
@@ -50,6 +95,9 @@ class Sun {
     render(ctx) {
         ctx.save();
 
+        // Draw gravity field particles first
+        this.renderGravityParticles(ctx);
+
         // Draw outer glow
         const gradient = ctx.createRadialGradient(
             this.position.x, this.position.y, this.radius * 0.3,
@@ -76,6 +124,26 @@ class Sun {
         ctx.arc(this.position.x - this.radius * 0.2, this.position.y - this.radius * 0.2, this.radius * 0.4, 0, Math.PI * 2);
         ctx.fill();
 
+        ctx.restore();
+    }
+
+    /**
+     * Render gravity field particles
+     */
+    renderGravityParticles(ctx) {
+        ctx.save();
+        for (const particle of this.gravityParticles) {
+            const x = this.position.x + Math.cos(particle.angle) * particle.distance;
+            const y = this.position.y + Math.sin(particle.angle) * particle.distance;
+
+            ctx.fillStyle = `rgba(150, 150, 150, ${particle.opacity})`;
+            ctx.shadowBlur = 3;
+            ctx.shadowColor = 'rgba(150, 150, 150, 0.5)';
+
+            ctx.beginPath();
+            ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
         ctx.restore();
     }
 }

@@ -46,6 +46,11 @@ class Game {
         // Input system
         this.input = new Input();
 
+        // Sound manager
+        this.soundManager = new SoundManager();
+        this.soundManager.loadSound('laser', 'sounds/laserShoot.wav');
+        this.soundManager.loadSound('explosion', 'sounds/explosion_2.wav');
+
         // AI controller (will be initialized when AI mode is selected)
         this.ai = null;
 
@@ -105,7 +110,10 @@ class Game {
         if (input1.thrust) this.ship1.thrust();
         if (input1.shoot) {
             const bullet = this.ship1.shoot();
-            if (bullet) this.bullets.push(bullet);
+            if (bullet) {
+                this.bullets.push(bullet);
+                this.soundManager.play('laser');
+            }
         }
 
         // Handle Ship 2 input
@@ -114,7 +122,10 @@ class Game {
         if (input2.thrust) this.ship2.thrust();
         if (input2.shoot) {
             const bullet = this.ship2.shoot();
-            if (bullet) this.bullets.push(bullet);
+            if (bullet) {
+                this.bullets.push(bullet);
+                this.soundManager.play('laser');
+            }
         }
 
         // Apply gravity to ships
@@ -161,14 +172,14 @@ class Game {
             // Check collision with ships (can't hit own ship)
             if (bullet.ownerId !== this.ship1.id &&
                 bullet.checkCollision(this.ship1.position, this.ship1.radius)) {
-                this.ship1.die();
+                this.ship1.die(this.soundManager);
                 this.bullets.splice(i, 1);
                 continue;
             }
 
             if (bullet.ownerId !== this.ship2.id &&
                 bullet.checkCollision(this.ship2.position, this.ship2.radius)) {
-                this.ship2.die();
+                this.ship2.die(this.soundManager);
                 this.bullets.splice(i, 1);
                 continue;
             }
@@ -180,11 +191,24 @@ class Game {
 
         // Check ship collision with sun
         if (this.sun.isColliding(this.ship1.position, this.ship1.radius)) {
-            this.ship1.die();
+            this.ship1.die(this.soundManager);
         }
         if (this.sun.isColliding(this.ship2.position, this.ship2.radius)) {
-            this.ship2.die();
+            this.ship2.die(this.soundManager);
         }
+
+        // Check ship-to-ship collision
+        if (this.ship1.active && this.ship2.active) {
+            const distance = this.ship1.position.distanceTo(this.ship2.position);
+            if (distance < this.ship1.radius + this.ship2.radius) {
+                // Both ships explode!
+                this.ship1.die(this.soundManager);
+                this.ship2.die(this.soundManager);
+            }
+        }
+
+        // Update sun gravity particles animation
+        this.sun.updateGravityParticles();
     }
 
     /**
@@ -315,8 +339,15 @@ class Game {
 
         this.ctx.fillText(winner, this.canvas.width / 2, this.canvas.height / 2);
 
+        // Display final score (remaining lives)
+        this.ctx.font = '24px monospace';
+        this.ctx.fillStyle = '#CCCCCC';
+        const score = `${this.ship1.lives}:${this.ship2.lives}`;
+        this.ctx.fillText(`Score: ${score}`, this.canvas.width / 2, this.canvas.height / 2 + 50);
+
         this.ctx.font = '20px monospace';
-        this.ctx.fillText('Stiskni MEZERNIK pro restart', this.canvas.width / 2, this.canvas.height / 2 + 50);
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillText('Press SPACE to restart', this.canvas.width / 2, this.canvas.height / 2 + 90);
 
         this.ctx.restore();
     }
@@ -334,24 +365,65 @@ class Game {
 
         // Title
         this.ctx.save();
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = 'bold 72px monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('SPACEWAR!', this.canvas.width / 2, this.canvas.height / 3);
+        this.ctx.textAlign = 'center'; // Set text alignment for all menu text
+
+        // Game title
+        this.ctx.font = 'bold 48px monospace';
+        const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
+        gradient.addColorStop(0, '#00BFFF');
+        gradient.addColorStop(1, '#FF1493');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillText('SPACEWAR!', this.canvas.width / 2, 120);
 
         // Menu options
         this.ctx.font = 'bold 32px monospace';
         this.ctx.fillStyle = '#00BFFF';
-        this.ctx.fillText('Stiskni 1: Hrac vs Hrac', this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.fillText('Press 1: Player vs Player', this.canvas.width / 2, 200);
 
         this.ctx.fillStyle = '#FF1493';
-        this.ctx.fillText('Stiskni 2: Hrac vs Pocitac', this.canvas.width / 2, this.canvas.height / 2 + 60);
+        this.ctx.fillText('Press 2: Player vs Computer', this.canvas.width / 2, 260);
 
-        // Instructions
+        // Sound toggle
+        this.ctx.font = '20px monospace';
+        this.ctx.fillStyle = this.soundManager.isEnabled() ? '#00FF00' : '#FF0000';
+        const soundStatus = this.soundManager.isEnabled() ? 'ON' : 'OFF';
+        this.ctx.fillText(`Press M: Sound ${soundStatus}`, this.canvas.width / 2, 320);
+
+        // Game objective
+        this.ctx.font = 'bold 18px monospace';
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillText('OBJECTIVE:', this.canvas.width / 2, 380);
         this.ctx.font = '16px monospace';
-        this.ctx.fillStyle = '#888888';
-        this.ctx.fillText('Hrac 1: W=Plyn A/D=Otaceni V=Strelba', this.canvas.width / 2, this.canvas.height - 100);
-        this.ctx.fillText('Hrac 2: \u2191=Plyn \u2190/\u2192=Otaceni Pravy Ctrl=Strelba', this.canvas.width / 2, this.canvas.height - 70);
+        this.ctx.fillStyle = '#CCCCCC';
+        this.ctx.fillText('Defeat your opponent with lasers and avoid the sun\'s gravity!', this.canvas.width / 2, 405);
+
+        // Controls
+        this.ctx.font = 'bold 18px monospace';
+        this.ctx.fillStyle = '#00BFFF';
+        this.ctx.fillText('PLAYER 1 CONTROLS:', this.canvas.width / 2, 450);
+        this.ctx.font = '14px monospace';
+        this.ctx.fillStyle = '#88CCFF';
+        this.ctx.fillText('W = Thrust | A/D = Rotate | V = Shoot', this.canvas.width / 2, 475);
+
+        this.ctx.font = 'bold 18px monospace';
+        this.ctx.fillStyle = '#FF1493';
+        this.ctx.fillText('PLAYER 2 CONTROLS:', this.canvas.width / 2, 515);
+        this.ctx.font = '14px monospace';
+        this.ctx.fillStyle = '#FF88CC';
+        this.ctx.fillText('↑ = Thrust | ←/→ = Rotate | Right Ctrl = Shoot', this.canvas.width / 2, 540);
+
+        // Author credits
+        this.ctx.font = '14px monospace';
+        this.ctx.fillStyle = '#666666';
+        this.ctx.fillText('Author: Robert Bielka (Bildo) a AI dne 31. 1. 2026', this.canvas.width / 2, this.canvas.height - 80);
+
+        // Historical information
+        this.ctx.font = '12px monospace';
+        this.ctx.fillStyle = '#555555';
+        const historyLine1 = 'Spacewar! is considered one of the earliest and most influential video games in history,';
+        const historyLine2 = 'developed in 1962 by Steve Russell and a team of MIT students for the DEC PDP-1 minicomputer.';
+        this.ctx.fillText(historyLine1, this.canvas.width / 2, this.canvas.height - 50);
+        this.ctx.fillText(historyLine2, this.canvas.width / 2, this.canvas.height - 35);
 
         this.ctx.restore();
     }
@@ -364,6 +436,8 @@ class Game {
             this.startGame('pvp');
         } else if (this.input.isKeyPressed('2') || this.input.isKeyPressed('Digit2')) {
             this.startGame('ai');
+        } else if (this.input.isKeyPressed('m') || this.input.isKeyPressed('M')) {
+            this.soundManager.toggle();
         }
     }
 
