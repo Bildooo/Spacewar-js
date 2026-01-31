@@ -470,7 +470,7 @@ class Game {
         // Author credits
         this.ctx.font = '14px monospace';
         this.ctx.fillStyle = 'rgba(221, 221, 221, 1)';
-        this.ctx.fillText('Author: Robert Bielka (Bildo) and AI on 31. 1. 2026', this.canvas.width / 2, this.canvas.height - 80);
+        this.ctx.fillText('Developed by Robert Bielka (Bildo) in collaboration with AI — January 31, 2026', this.canvas.width / 2, this.canvas.height - 80);
 
         // Historical information
         this.ctx.font = '14px monospace';
