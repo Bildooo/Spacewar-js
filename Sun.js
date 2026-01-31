@@ -18,16 +18,19 @@ class Sun {
      * Initialize gravity field particles
      */
     initGravityParticles() {
-        const particleCount = 50; // Reduced from 80
+        const particleCount = 60; // Increased for better coverage
+        const maxDistance = 380; // Will cover most of play area
+
         for (let i = 0; i < particleCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const distance = 50 + Math.random() * 200; // 50-250 pixels from sun
+            // Spawn particles across entire play area
+            const distance = 30 + Math.random() * 370; // Reduced radius by 30px (400 -> 370)
 
             this.gravityParticles.push({
                 angle: angle,
                 distance: distance,
                 baseSpeed: 0.2 + Math.random() * 0.3,
-                size: 1 + Math.random() * 2,
+                size: 0.8 + Math.random() * 1.5, // Smaller particles
                 opacity: 0.3 + Math.random() * 0.4
             });
         }
@@ -40,7 +43,7 @@ class Sun {
         for (const particle of this.gravityParticles) {
             // Calculate acceleration based on distance (gravity gets stronger closer to sun)
             // Using inverse square for realistic gravity: closer = faster
-            const normalizedDist = particle.distance / 250; // 0-1 range
+            const normalizedDist = particle.distance / 430; // Updated max distance (30 + 400)
             const acceleration = 1 + (1 - normalizedDist) * 3; // 1x to 4x speed
             const currentSpeed = particle.baseSpeed * acceleration;
 
@@ -48,8 +51,8 @@ class Sun {
             particle.distance -= currentSpeed;
 
             // Reset particle when it gets too close
-            if (particle.distance < 50) {
-                particle.distance = 250;
+            if (particle.distance < 30) {
+                particle.distance = 380; // Reset to edge (30 + 370)
                 particle.angle = Math.random() * Math.PI * 2;
             }
         }

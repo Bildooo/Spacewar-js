@@ -97,11 +97,18 @@ class Ship {
             this.trail.shift();
         }
 
-        // Screen wrapping
-        if (this.position.x < 0) this.position.x = canvasWidth;
-        if (this.position.x > canvasWidth) this.position.x = 0;
-        if (this.position.y < 0) this.position.y = canvasHeight;
-        if (this.position.y > canvasHeight) this.position.y = 0;
+        // Circular wrapping (polar coordinates)
+        const dx = this.position.x - canvasWidth / 2;
+        const dy = this.position.y - canvasHeight / 2;
+        const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+        const playRadius = canvasHeight / 2 - 10; // Match game play area radius
+
+        if (distanceFromCenter > playRadius) {
+            // Wrap to opposite side through center
+            const angle = Math.atan2(dy, dx);
+            this.position.x = canvasWidth / 2 - Math.cos(angle) * playRadius * 0.9;
+            this.position.y = canvasHeight / 2 - Math.sin(angle) * playRadius * 0.9;
+        }
     }
 
     /**
@@ -237,9 +244,9 @@ class Ship {
 
         // Different shapes for each ship
         if (this.id === 1) {
-            // Ship 1: Pointed tail (arrow shape)
+            // Ship 1: Pointed tail (goes outward)
             ctx.lineTo(-this.radius, this.radius); // Bottom left
-            ctx.lineTo(-this.radius * 0.3, 0); // Tail point (goes outward)
+            ctx.lineTo(-this.radius * 1.3, 0); // Tail point (goes OUTWARD)
             ctx.lineTo(-this.radius, -this.radius); // Top left
         } else {
             // Ship 2: Classic triangle with indent

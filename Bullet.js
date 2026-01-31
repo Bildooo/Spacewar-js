@@ -50,11 +50,22 @@ class Bullet {
             this.active = false;
         }
 
-        // Deactivate if off screen
-        if (this.position.x < 0 || this.position.x > canvasWidth ||
-            this.position.y < 0 || this.position.y > canvasHeight) {
+        // Deactivate if off screen (circular boundary)
+        if (this.isOffScreen(canvasWidth, canvasHeight)) {
             this.active = false;
         }
+    }
+
+    /**
+     * Check if bullet is off screen (outside circular play area)
+     */
+    isOffScreen(canvasWidth, canvasHeight) {
+        const dx = this.position.x - canvasWidth / 2;
+        const dy = this.position.y - canvasHeight / 2;
+        const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+        const playRadius = canvasHeight / 2 - 10; // Match game play area radius
+
+        return distanceFromCenter > playRadius;
     }
 
     /**

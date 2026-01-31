@@ -9,12 +9,21 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
 
         // Set canvas size
-        this.canvas.width = 1200;
+        this.canvas.width = 800;
         this.canvas.height = 800;
 
         // Game state
         this.state = 'menu'; // 'menu', 'playing', 'gameOver'
         this.gameMode = null; // 'pvp' or 'ai'
+
+        // Game loop state
+        this.running = false;
+        this.lastFrameTime = 0;
+
+        // Circular play area (like original Spacewar!)
+        this.playAreaRadius = this.canvas.height / 2 - 10; // Full height minus small margin
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
 
         // Game objects
         this.sun = new Sun(
@@ -24,21 +33,22 @@ class Game {
             30    // radius
         );
 
-        // Create ships
+        // Ship 1 (Blue) - starts on left side
         this.ship1 = new Ship(
-            150,
+            this.canvas.width / 2 - 250,  // Left of center
             this.canvas.height / 2,
-            0, // angle (pointing right)
-            1,
-            '#00BFFF' // blue
+            0,  // Facing right
+            1,  // id
+            '#00BFFF' // color
         );
 
+        // Ship 2 (Pink) - starts on right side
         this.ship2 = new Ship(
-            this.canvas.width - 150,
+            this.canvas.width / 2 + 250,  // Right of center
             this.canvas.height / 2,
-            Math.PI, // angle (pointing left)
-            2,
-            '#FF1493' // pink
+            Math.PI,  // Facing left
+            2,  // id
+            '#FF1493' // color
         );
 
         this.bullets = [];
@@ -222,6 +232,35 @@ class Game {
         // Draw stars (simple background)
         this.drawStars();
 
+        // Draw circular play area with black mask outside
+        this.ctx.save();
+
+        // Fill entire canvas with black
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Create circular clip region for play area
+        this.ctx.beginPath();
+        this.ctx.arc(this.centerX, this.centerY, this.playAreaRadius, 0, Math.PI * 2);
+        this.ctx.clip();
+
+        // Fill play area with game background
+        this.ctx.fillStyle = '#000814';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.restore();
+
+        // Draw circular border
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(100, 150, 200, 0.5)';
+        this.ctx.lineWidth = 3;
+        this.ctx.shadowBlur = 15;
+        this.ctx.shadowColor = 'rgba(100, 150, 200, 0.8)';
+        this.ctx.beginPath();
+        this.ctx.arc(this.centerX, this.centerY, this.playAreaRadius, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.restore();
+
         // Draw sun
         this.sun.render(this.ctx);
 
@@ -293,14 +332,14 @@ class Game {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player 1: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 40);
-            this.ctx.fillText('Player 2: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
+            this.ctx.fillText('Player 1: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 20);
+            this.ctx.fillText('Player 2: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 5);
             this.ctx.restore();
         } else if (this.gameMode === 'ai') {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 40);
+            this.ctx.fillText('Player: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 20);
             this.ctx.restore();
         }
 
@@ -340,12 +379,12 @@ class Game {
         this.ctx.fillText(winner, this.canvas.width / 2, this.canvas.height / 2);
 
         // Display final score (remaining lives)
-        this.ctx.font = '24px monospace';
+        this.ctx.font = '32px monospace';
         this.ctx.fillStyle = '#CCCCCC';
         const score = `${this.ship1.lives}:${this.ship2.lives}`;
         this.ctx.fillText(`Score: ${score}`, this.canvas.width / 2, this.canvas.height / 2 + 50);
 
-        this.ctx.font = '20px monospace';
+        this.ctx.font = '32px monospace';
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.fillText('Press SPACE to restart', this.canvas.width / 2, this.canvas.height / 2 + 90);
 
@@ -368,62 +407,70 @@ class Game {
         this.ctx.textAlign = 'center'; // Set text alignment for all menu text
 
         // Game title
-        this.ctx.font = 'bold 48px monospace';
+        this.ctx.font = 'bold 72px monospace';
         const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
         gradient.addColorStop(0, '#00BFFF');
         gradient.addColorStop(1, '#FF1493');
         this.ctx.fillStyle = gradient;
-        this.ctx.fillText('SPACEWAR!', this.canvas.width / 2, 120);
+        this.ctx.fillText('SPACEWAR!', this.canvas.width / 2, 80);
 
         // Menu options
         this.ctx.font = 'bold 32px monospace';
         this.ctx.fillStyle = '#00BFFF';
-        this.ctx.fillText('Press 1: Player vs Player', this.canvas.width / 2, 200);
+        this.ctx.fillText('Press 1: Player vs Computer', this.canvas.width / 2, 160);
 
         this.ctx.fillStyle = '#FF1493';
-        this.ctx.fillText('Press 2: Player vs Computer', this.canvas.width / 2, 260);
+        this.ctx.fillText('Press 2: Player vs Player', this.canvas.width / 2, 200);
+
+
+        // Game objective
+        this.ctx.font = 'bold 32px monospace';
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillText('OBJECTIVE:', this.canvas.width / 2, 310);
+        this.ctx.font = '22px monospace';
+        this.ctx.fillStyle = '#CCCCCC';
+        this.ctx.fillText('Defeat your opponent with lasers and avoid the sun\'s gravity!', this.canvas.width / 2, 340);
+
+        // Controls
+        this.ctx.font = 'bold 22px monospace';
+        this.ctx.fillStyle = '#00BFFF';
+        this.ctx.fillText('PLAYER 1 CONTROLS:', this.canvas.width / 2, 450);
+        this.ctx.font = '18px monospace';
+        this.ctx.fillStyle = '#88CCFF';
+        this.ctx.fillText('W = Thrust | A/D = Rotate | V = Shoot', this.canvas.width / 2, 475);
+
+        this.ctx.font = 'bold 22px; monospace';
+        this.ctx.fillStyle = '#FF1493';
+        this.ctx.fillText('PLAYER 2 CONTROLS:', this.canvas.width / 2, 515);
+        this.ctx.font = '18px monospace';
+        this.ctx.fillStyle = '#FF88CC';
+        this.ctx.fillText('↑ = Thrust | ←/→ = Rotate | Right Ctrl = Shoot', this.canvas.width / 2, 540);
 
         // Sound toggle
         this.ctx.font = '20px monospace';
         this.ctx.fillStyle = this.soundManager.isEnabled() ? '#00FF00' : '#FF0000';
         const soundStatus = this.soundManager.isEnabled() ? 'ON' : 'OFF';
-        this.ctx.fillText(`Press M: Sound ${soundStatus}`, this.canvas.width / 2, 320);
-
-        // Game objective
-        this.ctx.font = 'bold 18px monospace';
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.fillText('OBJECTIVE:', this.canvas.width / 2, 380);
-        this.ctx.font = '16px monospace';
-        this.ctx.fillStyle = '#CCCCCC';
-        this.ctx.fillText('Defeat your opponent with lasers and avoid the sun\'s gravity!', this.canvas.width / 2, 405);
-
-        // Controls
-        this.ctx.font = 'bold 18px monospace';
-        this.ctx.fillStyle = '#00BFFF';
-        this.ctx.fillText('PLAYER 1 CONTROLS:', this.canvas.width / 2, 450);
-        this.ctx.font = '14px monospace';
-        this.ctx.fillStyle = '#88CCFF';
-        this.ctx.fillText('W = Thrust | A/D = Rotate | V = Shoot', this.canvas.width / 2, 475);
-
-        this.ctx.font = 'bold 18px monospace';
-        this.ctx.fillStyle = '#FF1493';
-        this.ctx.fillText('PLAYER 2 CONTROLS:', this.canvas.width / 2, 515);
-        this.ctx.font = '14px monospace';
-        this.ctx.fillStyle = '#FF88CC';
-        this.ctx.fillText('↑ = Thrust | ←/→ = Rotate | Right Ctrl = Shoot', this.canvas.width / 2, 540);
+        this.ctx.fillText(`Press M: Sound ${soundStatus}`, this.canvas.width / 2, 630);
 
         // Author credits
         this.ctx.font = '14px monospace';
-        this.ctx.fillStyle = '#666666';
-        this.ctx.fillText('Author: Robert Bielka (Bildo) a AI dne 31. 1. 2026', this.canvas.width / 2, this.canvas.height - 80);
+        this.ctx.fillStyle = 'rgba(221, 221, 221, 1)';
+        this.ctx.fillText('Author: Robert Bielka (Bildo) and AI on 31. 1. 2026', this.canvas.width / 2, this.canvas.height - 80);
 
         // Historical information
-        this.ctx.font = '12px monospace';
-        this.ctx.fillStyle = '#555555';
+        this.ctx.font = '14px monospace';
+        this.ctx.fillStyle = 'rgba(221, 221, 221, 1)';
         const historyLine1 = 'Spacewar! is considered one of the earliest and most influential video games in history,';
         const historyLine2 = 'developed in 1962 by Steve Russell and a team of MIT students for the DEC PDP-1 minicomputer.';
         this.ctx.fillText(historyLine1, this.canvas.width / 2, this.canvas.height - 50);
         this.ctx.fillText(historyLine2, this.canvas.width / 2, this.canvas.height - 35);
+
+        // version
+        this.ctx.font = '14px monospace';
+        this.ctx.fillStyle = 'rgba(158, 158, 158, 1)';
+        const vers = 'version 0.8.0';
+        this.ctx.fillText(vers, this.canvas.width - 70, this.canvas.height - 5);
+
 
         this.ctx.restore();
     }
@@ -433,9 +480,9 @@ class Game {
      */
     handleMenuInput() {
         if (this.input.isKeyPressed('1') || this.input.isKeyPressed('Digit1')) {
-            this.startGame('pvp');
-        } else if (this.input.isKeyPressed('2') || this.input.isKeyPressed('Digit2')) {
             this.startGame('ai');
+        } else if (this.input.isKeyPressed('2') || this.input.isKeyPressed('Digit2')) {
+            this.startGame('pvp');
         } else if (this.input.isKeyPressed('m') || this.input.isKeyPressed('M')) {
             this.soundManager.toggle();
         }
