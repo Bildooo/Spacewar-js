@@ -225,21 +225,43 @@ class Game {
                 continue;
             }
 
-            // Check collision with ships (can't hit own ship)
-            if (bullet.ownerId !== this.ship1.id &&
-                bullet.checkCollision(this.ship1.position, this.ship1.radius)) {
-                this.ship1.die(this.soundManager);
-                this.ship2.resetToStart(); // Reset P2
-                this.bullets = []; // Clear bullets on round end
-                break; // Stop processing bullets
+            // Check collision with ships
+            // Collision with Ship 1
+            if (bullet.ownerId !== this.ship1.id) {
+                const hit1 = bullet.checkCollision(this.ship1.position, this.ship1.radius + (this.ship1.shieldActive ? 8 : 0));
+                if (hit1) {
+                    if (this.ship1.shieldActive) {
+                        // Shield blocks bullet
+                        this.bullets.splice(i, 1);
+                        this.soundManager.play('shield'); // Need shield hit sound? reusing or default
+                        continue;
+                    } else {
+                        // Ship dies
+                        this.ship1.die(this.soundManager);
+                        this.ship2.resetToStart(); // Reset P2
+                        this.bullets = []; // Clear all bullets
+                        break;
+                    }
+                }
             }
 
-            if (bullet.ownerId !== this.ship2.id &&
-                bullet.checkCollision(this.ship2.position, this.ship2.radius)) {
-                this.ship2.die(this.soundManager);
-                this.ship1.resetToStart(); // Reset P1
-                this.bullets = []; // Clear bullets on round end
-                break; // Stop processing bullets
+            // Collision with Ship 2
+            if (bullet.ownerId !== this.ship2.id) {
+                const hit2 = bullet.checkCollision(this.ship2.position, this.ship2.radius + (this.ship2.shieldActive ? 8 : 0));
+                if (hit2) {
+                    if (this.ship2.shieldActive) {
+                        // Shield blocks bullet
+                        this.bullets.splice(i, 1);
+                        this.soundManager.play('shield');
+                        continue;
+                    } else {
+                        // Ship dies
+                        this.ship2.die(this.soundManager);
+                        this.ship1.resetToStart(); // Reset P1
+                        this.bullets = []; // Clear all bullets
+                        break;
+                    }
+                }
             }
         }
 
