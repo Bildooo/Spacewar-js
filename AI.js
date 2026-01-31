@@ -17,6 +17,8 @@ class AI {
         this.targetAngle = 0;
         this.shouldThrust = false;
         this.shouldShoot = false;
+        this.shouldShield = false;
+        this.shouldHyperspace = false;
 
         // Difficulty settings
         this.aimAccuracy = 0.9; // 0-1, how accurate the AI aims
@@ -36,7 +38,12 @@ class AI {
                 rotateLeft: false,
                 rotateRight: false,
                 thrust: false,
-                shoot: false
+                rotateLeft: false,
+                rotateRight: false,
+                thrust: false,
+                shoot: false,
+                hyperspace: false,
+                shield: false
             };
         }
 
@@ -73,8 +80,42 @@ class AI {
             return;
         }
 
-        // Priority 2: Combat behavior
+        // Priority 2: Defensive behavior (Shields/Hyperspace)
+        this.defensiveBehavior(distanceToSun, distanceToEnemy);
+
+        // Priority 3: Combat behavior
         this.combatBehavior();
+    }
+
+    /**
+     * Defensive behavior
+     */
+    defensiveBehavior(distanceToSun, distanceToEnemy) {
+        this.shouldShield = false;
+        this.shouldHyperspace = false;
+
+        // EMERGENCY: Hyperspace if too close to sun and falling in
+        if (distanceToSun < 50) {
+            this.shouldHyperspace = true;
+            return;
+        }
+
+        // Use shield if bullets are close
+        // We'd need access to game bullets, but we don't have it easily here without passing Game to AI
+        // So we'll implement a simple distance check to enemy if they are shooting
+        // Or we could cheat and assume if enemy is facing us and close, they might shoot
+
+        // Simpler logic: Shield if enemy is close and facing us
+        if (distanceToEnemy < 200) {
+            // Check if enemy aiming at us
+            const dirToUs = Vector2.subtract(this.ship.position, this.enemyShip.position);
+            const angleToUs = Math.atan2(dirToUs.y, dirToUs.x);
+            const angleDiff = this.getAngleDifference(this.enemyShip.angle, angleToUs);
+
+            if (Math.abs(angleDiff) < 0.2) {
+                this.shouldShield = true;
+            }
+        }
     }
 
     /**
@@ -160,7 +201,9 @@ class AI {
             rotateLeft: angleDiff < -rotateThreshold,
             rotateRight: angleDiff > rotateThreshold,
             thrust: this.shouldThrust,
-            shoot: this.shouldShoot
+            shoot: this.shouldShoot,
+            shield: this.shouldShield,
+            hyperspace: this.shouldHyperspace
         };
     }
 

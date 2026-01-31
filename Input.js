@@ -43,7 +43,9 @@ class Input {
             rotateLeft: this.isKeyPressed('ArrowLeft'),
             rotateRight: this.isKeyPressed('ArrowRight'),
             thrust: this.isKeyPressed('ArrowUp'),
-            shoot: this.isKeyPressed('ControlRight') || this.isKeyPressed('Control')
+            shoot: this.isKeyPressed('ControlRight') || this.isKeyPressed('Control'),
+            hyperspace: this.isKeyPressed('ArrowDown'),
+            shield: this.isKeyPressed('ShiftRight') || this.isKeyPressed('Shift')
         };
     }
 
@@ -55,7 +57,9 @@ class Input {
             rotateLeft: this.isKeyPressed('a'),
             rotateRight: this.isKeyPressed('d'),
             thrust: this.isKeyPressed('w'),
-            shoot: this.isKeyPressed('v')
+            shoot: this.isKeyPressed('v'),
+            hyperspace: this.isKeyPressed('s'),
+            shield: this.isKeyPressed('q')
         };
     }
 }

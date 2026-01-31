@@ -101,31 +101,49 @@ class Sun {
         // Draw gravity field particles first
         this.renderGravityParticles(ctx);
 
-        // Draw outer glow
+        // Draw outer glow/corona
+        const pulse = 1 + Math.sin(Date.now() * 0.002) * 0.05;
+
+        // Outer corona
         const gradient = ctx.createRadialGradient(
-            this.position.x, this.position.y, this.radius * 0.3,
-            this.position.x, this.position.y, this.radius * 1.5
+            this.position.x, this.position.y, this.radius * 0.8,
+            this.position.x, this.position.y, this.radius * 2.5 * pulse
         );
-        gradient.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(255, 200, 0, 0.4)');
-        gradient.addColorStop(1, 'rgba(255, 150, 0, 0)');
+        gradient.addColorStop(0, 'rgba(255, 200, 50, 0.6)');
+        gradient.addColorStop(0.4, 'rgba(255, 100, 0, 0.2)');
+        gradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(this.position.x, this.position.y, this.radius * 1.5, 0, Math.PI * 2);
+        ctx.arc(this.position.x, this.position.y, this.radius * 2.5 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Inner intense glow
+        const innerGradient = ctx.createRadialGradient(
+            this.position.x, this.position.y, this.radius * 0.5,
+            this.position.x, this.position.y, this.radius * 1.2
+        );
+        innerGradient.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
+        innerGradient.addColorStop(1, 'rgba(255, 180, 0, 0.1)');
+
+        ctx.fillStyle = innerGradient;
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius * 1.2, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw sun body
         ctx.fillStyle = '#FFD700';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#FF4500';
         ctx.beginPath();
         ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Draw inner highlight
-        ctx.fillStyle = '#FFFF99';
-        ctx.beginPath();
-        ctx.arc(this.position.x - this.radius * 0.2, this.position.y - this.radius * 0.2, this.radius * 0.4, 0, Math.PI * 2);
-        ctx.fill();
+        // Draw active surface details (random solar flares)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = '#FFFFA0';
+        ctx.restore();
 
         ctx.restore();
     }

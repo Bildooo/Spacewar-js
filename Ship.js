@@ -35,10 +35,28 @@ class Ship {
         this.trail = []; // Position history for trail
         this.maxTrailLength = 15;
         this.explosionParticles = []; // Debris on death
+
+        // Advanced features
+        this.maxEnergy = 100;
+        this.energy = 100;
+        this.shieldActive = false;
+        this.hyperspaceCooldown = 0;
+        this.hyperspaceCooldownMax = 180; // 3 seconds
+
+        // Fuel system
+        this.maxFuel = 1000;
+        this.fuel = 1000;
+        this.fuelEnabled = false; // Toggled by game
     }
 
     thrust() {
         if (!this.active) return;
+
+        // Fuel check
+        if (this.fuelEnabled) {
+            if (this.fuel <= 0) return;
+            this.fuel -= 1.5; // Consumption rate
+        }
 
         const thrustVector = Vector2.fromAngle(this.angle);
         thrustVector.multiply(this.thrustPower);
@@ -52,10 +70,62 @@ class Ship {
     }
 
     /**
+     * Activate hyperspace drive
+     */
+    hyperspace() {
+        if (!this.active || this.hyperspaceCooldown > 0) return;
+
+        // Reset cooldown
+        this.hyperspaceCooldown = this.hyperspaceCooldownMax;
+
+        // 15% chance of mulfunction (explosion)
+        if (Math.random() < 0.15) {
+            this.die(); // No sound manager passed, handled in game loop ideally, but this works
+            return;
+        }
+
+        // Random positions
+        // We need canvas dimensions, but we can approximate or rely on wraplogic
+        // For now, let's use a wide random range which wrap() will fix next frame if out of bounds
+        this.position.x = Math.random() * 800;
+        this.position.y = Math.random() * 800;
+
+        // Reset velocity
+        this.velocity.set(0, 0);
+
+        // Create entrance effect (explosion particles without death)
+        this.createExplosion(this.position.x, this.position.y);
+    }
+
+    /**
+     * Toggle shield
+     */
+    setShield(active) {
+        if (!this.active) {
+            this.shieldActive = false;
+            return;
+        }
+
+        if (active && this.energy > 5) {
+            this.shieldActive = true;
+        } else {
+            this.shieldActive = false;
+        }
+    }
+
+    /**
      * Rotate the ship
      */
     rotate(direction) {
         if (!this.active) return;
+
+        // Rotation consumes small amount of fuel too?
+        // User said "after its consumption it would not be controllable"
+        if (this.fuelEnabled) {
+            if (this.fuel <= 0) return;
+            this.fuel -= 0.2;
+        }
+
         this.angle += direction * this.rotationSpeed;
     }
 
@@ -75,6 +145,22 @@ class Ship {
         // Update cooldowns
         if (this.shootCooldown > 0) {
             this.shootCooldown--;
+        }
+        if (this.hyperspaceCooldown > 0) {
+            this.hyperspaceCooldown--;
+        }
+
+        // Handle Energy / Shield
+        if (this.shieldActive) {
+            this.energy -= 0.5; // Drain energy
+            if (this.energy <= 0) {
+                this.energy = 0;
+                this.shieldActive = false;
+            }
+        } else {
+            if (this.energy < this.maxEnergy) {
+                this.energy += 0.05; // Regenerate energy (Much slower: 0.2 -> 0.05)
+            }
         }
 
         // Handle respawn
@@ -138,6 +224,8 @@ class Ship {
 
         // Clear trail so it doesn't stay on screen
         this.trail = [];
+        this.shieldActive = false;
+        this.energy = this.maxEnergy;
 
         // Play explosion sound
         if (soundManager) {
@@ -205,8 +293,15 @@ class Ship {
     respawn() {
         if (this.lives <= 0) return;
 
+        this.resetToStart();
         this.active = true;
         this.respawnTimer = 0;
+    }
+
+    /**
+     * Reset ship to start conditions (full resources, start pos)
+     */
+    resetToStart() {
         this.velocity.set(0, 0);
         this.angle = this.startAngle;
         this.position.copy(this.startPosition);
@@ -214,6 +309,10 @@ class Ship {
         // Clear residuals
         this.trail = [];
         this.explosionParticles = [];
+        this.energy = this.maxEnergy;
+        this.fuel = this.maxFuel;
+        this.shieldActive = false;
+        this.hyperspaceCooldown = 0;
     }
 
     /**
@@ -238,8 +337,25 @@ class Ship {
         ctx.translate(this.position.x, this.position.y);
         ctx.rotate(this.angle);
 
+        // Draw Shield
+        if (this.shieldActive) {
+            ctx.save();
+            ctx.strokeStyle = '#00FFFF';
+            ctx.shadowColor = '#00FFFF';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
+            ctx.fill();
+            ctx.restore();
+        }
+
         // Draw thrust flame
-        if (showThrust) {
+        // Only show if thrusting AND (fuel is disabled OR we have fuel)
+        const hasFuel = !this.fuelEnabled || this.fuel > 0;
+        if (showThrust && hasFuel) {
             ctx.fillStyle = '#FF9900';
             ctx.shadowColor = '#FF9900';
             ctx.shadowBlur = 10;
@@ -338,6 +454,63 @@ class Ship {
         ctx.fillStyle = this.color;
         ctx.font = '16px monospace';
         ctx.fillText(`Player ${this.id}: ${this.lives} lives`, x, y);
+
+        // Draw Energy Bar
+        const barWidth = 100;
+        const barHeight = 6;
+        const barX = x;
+        const barY = y + 10;
+
+        // Shield Label
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = '10px monospace';
+        ctx.fillText('SHIELD', barX, barY - 2);
+
+        // Background
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // Fill
+        const energyRatio = this.energy / this.maxEnergy;
+        ctx.fillStyle = this.energy > 20 ? '#00FFFF' : '#FF0000';
+        ctx.fillRect(barX, barY, barWidth * energyRatio, barHeight);
+
+        // Cooldown indicator for hyperspace (small dot)
+        if (this.hyperspaceCooldown > 0) {
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(barX + barWidth + 5, barY, 6, 6);
+        } else {
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(barX + barWidth + 5, barY, 6, 6);
+        }
+
+        // Fuel Bar (Yellow) - Only if enabled
+        if (this.fuelEnabled) {
+            const fuelY = barY + barHeight + 12; // Adjusted spacing for labels
+
+            // Fuel Label
+            ctx.fillStyle = '#AAAAAA';
+            ctx.fillText('FUEL', barX, fuelY - 2);
+
+            ctx.fillStyle = '#444444';
+            ctx.fillRect(barX, fuelY, barWidth, barHeight);
+
+            const fuelRatio = this.fuel / this.maxFuel;
+            ctx.fillStyle = this.fuel > 100 ? '#FFD700' : '#FF4500';
+            ctx.fillRect(barX, fuelY, barWidth * fuelRatio, barHeight);
+        }
         ctx.restore();
+        ctx.restore();
+    }
+
+    /**
+     * Add fuel to the tank
+     */
+    addFuel(amount) {
+        if (!this.active) return;
+        this.fuel += amount;
+        if (this.fuel > this.maxFuel) {
+            this.fuel = this.maxFuel;
+        }
     }
 }

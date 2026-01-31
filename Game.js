@@ -17,9 +17,44 @@ class Game {
         this.gameMode = null; // 'pvp' or 'ai'
         this.aiDifficulty = 'easy'; // 'easy', 'medium', 'hard'
 
+        // Game Options
+        this.hazardsEnabled = false;
+        this.fuelEnabled = false;
+
         // Game loop state
         this.running = false;
         this.lastFrameTime = 0;
+
+        // Constellations data (relative coordinates 0-1)
+        this.constellations = [
+            // Ursa Major (Big Dipper)
+            {
+                name: 'Ursa Major',
+                stars: [
+                    { x: 0.1, y: 0.2 }, { x: 0.15, y: 0.22 }, { x: 0.2, y: 0.25 }, // Handle
+                    { x: 0.25, y: 0.3 }, { x: 0.3, y: 0.28 }, { x: 0.32, y: 0.35 }, { x: 0.25, y: 0.38 } // Bowl
+                ],
+                lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]]
+            },
+            // Ursa Minor (Little Dipper)
+            {
+                name: 'Ursa Minor',
+                stars: [
+                    { x: 0.6, y: 0.15 }, { x: 0.65, y: 0.18 }, { x: 0.7, y: 0.2 }, // Handle
+                    { x: 0.75, y: 0.22 }, { x: 0.78, y: 0.2 }, { x: 0.8, y: 0.25 }, { x: 0.75, y: 0.27 } // Bowl
+                ],
+                lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]]
+            },
+            // Cassiopeia
+            {
+                name: 'Cassiopeia',
+                stars: [
+                    { x: 0.8, y: 0.6 }, { x: 0.85, y: 0.65 }, { x: 0.9, y: 0.62 },
+                    { x: 0.95, y: 0.68 }, { x: 0.98, y: 0.65 }
+                ],
+                lines: [[0, 1], [1, 2], [2, 3], [3, 4]]
+            }
+        ];
 
         // Circular play area (like original Spacewar!)
         this.playAreaRadius = this.canvas.height / 2 - 10; // Full height minus small margin
@@ -53,6 +88,10 @@ class Game {
         );
 
         this.bullets = [];
+        this.asteroids = [];
+        this.fuelCanisters = []; // Array for fuel items
+        this.asteroidSpawnTimer = 0;
+        this.debris = []; // For asteroid fragments
 
         // Input system
         this.input = new Input();
@@ -119,6 +158,9 @@ class Game {
         if (input1.rotateLeft) this.ship1.rotate(-1);
         if (input1.rotateRight) this.ship1.rotate(1);
         if (input1.thrust) this.ship1.thrust();
+        if (input1.hyperspace) this.ship1.hyperspace();
+        this.ship1.setShield(input1.shield); // Toggle shield
+
         if (input1.shoot) {
             const bullet = this.ship1.shoot();
             if (bullet) {
@@ -131,6 +173,9 @@ class Game {
         if (input2.rotateLeft) this.ship2.rotate(-1);
         if (input2.rotateRight) this.ship2.rotate(1);
         if (input2.thrust) this.ship2.thrust();
+        if (input2.hyperspace) this.ship2.hyperspace();
+        this.ship2.setShield(input2.shield); // Toggle shield
+
         if (input2.shoot) {
             const bullet = this.ship2.shoot();
             if (bullet) {
@@ -184,6 +229,7 @@ class Game {
             if (bullet.ownerId !== this.ship1.id &&
                 bullet.checkCollision(this.ship1.position, this.ship1.radius)) {
                 this.ship1.die(this.soundManager);
+                this.ship2.resetToStart(); // Reset P2
                 this.bullets.splice(i, 1);
                 continue;
             }
@@ -191,6 +237,7 @@ class Game {
             if (bullet.ownerId !== this.ship2.id &&
                 bullet.checkCollision(this.ship2.position, this.ship2.radius)) {
                 this.ship2.die(this.soundManager);
+                this.ship1.resetToStart(); // Reset P1
                 this.bullets.splice(i, 1);
                 continue;
             }
@@ -203,9 +250,11 @@ class Game {
         // Check ship collision with sun
         if (this.sun.isColliding(this.ship1.position, this.ship1.radius)) {
             this.ship1.die(this.soundManager);
+            this.ship2.resetToStart(); // Reset P2
         }
         if (this.sun.isColliding(this.ship2.position, this.ship2.radius)) {
             this.ship2.die(this.soundManager);
+            this.ship1.resetToStart(); // Reset P1
         }
 
         // Check ship-to-ship collision
@@ -218,8 +267,154 @@ class Game {
             }
         }
 
-        // Update sun gravity particles animation
-        this.sun.updateGravityParticles();
+        // Update debris
+        this.updateDebris();
+
+        // Update asteroids
+        if (this.hazardsEnabled) {
+            this.updateAsteroids();
+        }
+
+        // Update fuel canisters
+        if (this.fuelEnabled) {
+            this.updateFuelCanisters();
+        }
+    }
+
+    /**
+     * Update and manage Fuel Canisters
+     */
+    updateFuelCanisters() {
+        // Spawn chance (rare)
+        if (this.fuelCanisters.length < 2 && Math.random() < 0.002) { // approx once every 8-10 seconds
+            this.spawnFuelCanister();
+        }
+
+        for (let i = this.fuelCanisters.length - 1; i >= 0; i--) {
+            const canister = this.fuelCanisters[i];
+            canister.update(this.canvas.width, this.canvas.height);
+
+            // Check collision with ships
+            if (this.ship1.active) {
+                const dist = canister.position.distanceTo(this.ship1.position);
+                if (dist < canister.radius + this.ship1.radius) {
+                    // Pickup
+                    this.ship1.addFuel(canister.fuelAmount);
+                    this.fuelCanisters.splice(i, 1);
+                    this.soundManager.play('shield'); // Reuse distinct sound
+                    continue;
+                }
+            }
+
+            if (this.ship2.active) {
+                const dist = canister.position.distanceTo(this.ship2.position);
+                if (dist < canister.radius + this.ship2.radius) {
+                    // Pickup
+                    this.ship2.addFuel(canister.fuelAmount);
+                    this.fuelCanisters.splice(i, 1);
+                    this.soundManager.play('shield');
+                    continue;
+                }
+            }
+        }
+    }
+
+    /**
+     * Spawn a fuel canister
+     */
+    spawnFuelCanister() {
+        const x = Math.random() * this.canvas.width;
+        const y = Math.random() * this.canvas.height;
+        this.fuelCanisters.push(new FuelCanister(x, y));
+    }
+
+    /**
+     * Update and manage asteroids
+     */
+    updateAsteroids() {
+        // Spawn/Respawn asteroids
+        if (this.asteroids.length < 3) { // Keep around 3 asteroids
+            this.asteroidSpawnTimer++;
+            if (this.asteroidSpawnTimer > 300) { // Every 5 seconds if low
+                this.spawnAsteroid();
+                this.asteroidSpawnTimer = 0;
+            }
+        }
+
+        for (let i = this.asteroids.length - 1; i >= 0; i--) {
+            const asteroid = this.asteroids[i];
+            asteroid.update(this.canvas.width, this.canvas.height);
+
+            // Collision with sun
+            if (this.sun.isColliding(asteroid.position, asteroid.radius)) {
+                this.asteroids.splice(i, 1);
+                continue;
+            }
+
+            // Collision with ships
+            if (this.ship1.active && !this.ship1.shieldActive && // Shield protects!
+                asteroid.position.distanceTo(this.ship1.position) < asteroid.radius + this.ship1.radius) {
+                this.ship1.die(this.soundManager);
+                this.ship2.resetToStart();
+            }
+            if (this.ship2.active && !this.ship2.shieldActive &&
+                asteroid.position.distanceTo(this.ship2.position) < asteroid.radius + this.ship2.radius) {
+                this.ship2.die(this.soundManager);
+                this.ship1.resetToStart();
+            }
+
+            // Collision with bullets (Bullet destroys asteroid)
+            for (let j = this.bullets.length - 1; j >= 0; j--) {
+                const bullet = this.bullets[j];
+                if (asteroid.position.distanceTo(bullet.position) < asteroid.radius + bullet.radius) {
+                    // Create debris
+                    const particles = asteroid.break();
+                    this.debris.push(...particles);
+
+                    // Destroy asteroid
+                    this.asteroids.splice(i, 1);
+                    // Destroy bullet
+                    this.bullets.splice(j, 1);
+                    this.soundManager.play('explosion');
+                    // Break loop since asteroid is gone
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Update space debris
+     */
+    updateDebris() {
+        for (let i = this.debris.length - 1; i >= 0; i--) {
+            const p = this.debris[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= p.decay;
+
+            if (p.life <= 0) {
+                this.debris.splice(i, 1);
+            }
+        }
+    }
+
+    /**
+     * Spawn a new random asteroid
+     */
+    spawnAsteroid() {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = this.playAreaRadius * 0.9;
+        const x = this.centerX + Math.cos(angle) * dist;
+        const y = this.centerY + Math.sin(angle) * dist;
+
+        // Aim somewhat towards center but randomly
+        const targetX = this.centerX + (Math.random() - 0.5) * 400;
+        const targetY = this.centerY + (Math.random() - 0.5) * 400;
+
+        const velocity = new Vector2(targetX - x, targetY - y);
+        velocity.normalize().multiply(1 + Math.random()); // Random speed
+        this.asteroids.push(new Asteroid(x, y, 10 + Math.random() * 15, velocity));
     }
 
     /**
@@ -233,6 +428,9 @@ class Game {
         // Draw stars (simple background)
         this.drawStars();
 
+        // Draw constellations
+        this.drawConstellations();
+
         // Draw circular play area with black mask outside
         this.ctx.save();
 
@@ -245,8 +443,16 @@ class Game {
         this.ctx.arc(this.centerX, this.centerY, this.playAreaRadius, 0, Math.PI * 2);
         this.ctx.clip();
 
-        // Fill play area with game background
-        this.ctx.fillStyle = '#000814';
+        // Fill play area with deep space gradient
+        const bgGradient = this.ctx.createRadialGradient(
+            this.centerX, this.centerY, 0,
+            this.centerX, this.centerY, this.playAreaRadius
+        );
+        bgGradient.addColorStop(0, '#0a0a2a'); // Deep blue/purple center
+        bgGradient.addColorStop(0.6, '#050515');
+        bgGradient.addColorStop(1, '#000005'); // Almost black edges
+
+        this.ctx.fillStyle = bgGradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.restore();
@@ -264,6 +470,23 @@ class Game {
 
         // Draw sun
         this.sun.render(this.ctx);
+
+        // Draw asteroids
+        if (this.hazardsEnabled) {
+            for (const asteroid of this.asteroids) {
+                asteroid.render(this.ctx);
+            }
+        }
+
+        // Draw debris
+        this.renderDebris();
+
+        // Draw fuel canisters
+        if (this.fuelEnabled) {
+            for (const canister of this.fuelCanisters) {
+                canister.render(this.ctx);
+            }
+        }
 
         // Draw bullets
         for (const bullet of this.bullets) {
@@ -326,6 +549,54 @@ class Game {
     }
 
     /**
+     * Draw constellations
+     */
+    drawConstellations() {
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        this.ctx.lineWidth = 1;
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+
+        for (const constellation of this.constellations) {
+            // Draw lines
+            this.ctx.beginPath();
+            for (const line of constellation.lines) {
+                const start = constellation.stars[line[0]];
+                const end = constellation.stars[line[1]];
+
+                this.ctx.moveTo(start.x * this.canvas.width, start.y * this.canvas.height);
+                this.ctx.lineTo(end.x * this.canvas.width, end.y * this.canvas.height);
+            }
+            this.ctx.stroke();
+
+            // Draw stars
+            for (const star of constellation.stars) {
+                const x = star.x * this.canvas.width;
+                const y = star.y * this.canvas.height;
+
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 2, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
+        this.ctx.restore();
+    }
+
+    /**
+     * Render space debris
+     */
+    renderDebris() {
+        this.ctx.save();
+        for (const p of this.debris) {
+            this.ctx.fillStyle = `rgba(170, 170, 170, ${p.life})`;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.restore();
+    }
+
+    /**
      * Render UI elements
      */
     renderUI() {
@@ -344,14 +615,14 @@ class Game {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player 1: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
-            this.ctx.fillText('Player 2: W=Thrust A/D=Rotate V=Shoot', 20, this.canvas.height - 5);
+            this.ctx.fillText('P1: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot | \u2193=Hyperspace .=Shield', 20, this.canvas.height - 20);
+            this.ctx.fillText('P2: W=Thrust A/D=Rotate V=Shoot | S=Hyperspace Q=Shield', 20, this.canvas.height - 5);
             this.ctx.restore();
         } else if (this.gameMode === 'ai') {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot', 20, this.canvas.height - 20);
+            this.ctx.fillText('Player: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot | \u2193=Hyperspace .=Shield', 20, this.canvas.height - 20);
             this.ctx.restore();
         }
 
@@ -437,14 +708,19 @@ class Game {
         this.ctx.fillStyle = '#CCCCCC';
         this.ctx.fillText(`Press 3: Difficulty ${this.aiDifficulty.toUpperCase()}`, this.canvas.width / 2, 240);
 
+        this.ctx.fillStyle = this.hazardsEnabled ? '#FF4500' : '#555555';
+        this.ctx.fillText(`Press 4: Hazards [${this.hazardsEnabled ? 'ON' : 'OFF'}]`, this.canvas.width / 2, 280);
+
+        this.ctx.fillStyle = this.fuelEnabled ? '#FFD700' : '#555555';
+        this.ctx.fillText(`Press 5: Fuel [${this.fuelEnabled ? 'ON' : 'OFF'}]`, this.canvas.width / 2, 320);
 
         // Game objective
         this.ctx.font = 'bold 32px monospace';
         this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.fillText('OBJECTIVE:', this.canvas.width / 2, 310);
+        this.ctx.fillText('OBJECTIVE:', this.canvas.width / 2, 380);
         this.ctx.font = '22px monospace';
         this.ctx.fillStyle = '#CCCCCC';
-        this.ctx.fillText('Defeat your opponent with lasers and avoid the sun\'s gravity!', this.canvas.width / 2, 340);
+        this.ctx.fillText('Defeat your opponent within the sun\'s gravity well!', this.canvas.width / 2, 410);
 
         // Controls
         this.ctx.font = 'bold 22px monospace';
@@ -452,14 +728,14 @@ class Game {
         this.ctx.fillText('PLAYER 1 CONTROLS:', this.canvas.width / 2, 450);
         this.ctx.font = '18px monospace';
         this.ctx.fillStyle = '#88CCFF';
-        this.ctx.fillText('\u2191 = Thrust | \u2190/\u2192 = Rotate | Right Ctrl = Shoot', this.canvas.width / 2, 475);
+        this.ctx.fillText('Move: \u2191\u2190\u2192 | Shoot: R-Ctrl | Hyper: \u2193 | Shield: R-Shift', this.canvas.width / 2, 475);
 
         this.ctx.font = 'bold 22px; monospace';
         this.ctx.fillStyle = '#FF1493';
         this.ctx.fillText('PLAYER 2 CONTROLS:', this.canvas.width / 2, 515);
         this.ctx.font = '18px monospace';
         this.ctx.fillStyle = '#FF88CC';
-        this.ctx.fillText('W = Thrust | A/D = Rotate | V = Shoot', this.canvas.width / 2, 540);
+        this.ctx.fillText('Move: WAD | Shoot: V | Hyper: S | Shield: Q', this.canvas.width / 2, 540);
 
         // Sound toggle
         this.ctx.font = '20px monospace';
@@ -500,6 +776,10 @@ class Game {
             this.startGame('pvp');
         } else if (this.input.isKeyPressed('3') || this.input.isKeyPressed('Digit3')) {
             this.cycleDifficulty();
+        } else if (this.input.isKeyPressed('4') || this.input.isKeyPressed('Digit4')) {
+            this.hazardsEnabled = !this.hazardsEnabled;
+        } else if (this.input.isKeyPressed('5') || this.input.isKeyPressed('Digit5')) {
+            this.fuelEnabled = !this.fuelEnabled;
         } else if (this.input.isKeyPressed('m') || this.input.isKeyPressed('M')) {
             this.soundManager.toggle();
         }
@@ -519,6 +799,7 @@ class Game {
         this.ship1.angle = this.ship1.startAngle;
         this.ship1.active = true;
         this.ship1.respawnTimer = 0;
+        this.ship1.fuelEnabled = this.fuelEnabled;
 
         this.ship2.lives = 5;
         this.ship2.position.copy(this.ship2.startPosition);
@@ -526,9 +807,14 @@ class Game {
         this.ship2.angle = this.ship2.startAngle;
         this.ship2.active = true;
         this.ship2.respawnTimer = 0;
+        this.ship2.fuelEnabled = this.fuelEnabled;
 
-        // Clear bullets
+        // Clear
         this.bullets = [];
+        this.asteroids = [];
+        this.fuelCanisters = [];
+        this.debris = [];
+        this.asteroidSpawnTimer = 0;
 
         // Initialize AI if needed
         if (mode === 'ai') {
