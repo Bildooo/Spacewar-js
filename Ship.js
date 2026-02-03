@@ -162,7 +162,7 @@ class Ship {
             }
         } else {
             if (this.energy < this.maxEnergy) {
-                this.energy += 0.05; // Regenerate energy (Much slower: 0.2 -> 0.05)
+                this.energy += 0.025; // Regenerate energy (Much slower: 0.05 -> 0.025)
             }
         }
 
@@ -427,7 +427,7 @@ class Ship {
 
         // Larger Score/Lives
         ctx.font = 'bold 24px monospace';
-        ctx.fillText(`Player ${this.id}: ${this.lives}`, x, y);
+        ctx.fillText(`Lives: ${this.lives}`, x, y);
 
         // Draw Energy Bar
         const barWidth = 100;

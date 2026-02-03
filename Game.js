@@ -100,6 +100,7 @@ class Game {
         this.soundManager = new SoundManager();
         this.soundManager.loadSound('laser', 'sounds/laserShoot.wav');
         this.soundManager.loadSound('explosion', 'sounds/explosion_2.wav');
+        this.soundManager.loadMusic('sounds/musicSpacewar.mp3');
 
         // AI controller (will be initialized when AI mode is selected)
         this.ai = null;
@@ -117,6 +118,23 @@ class Game {
      */
     start() {
         this.running = true;
+
+        // precise-music-start: Attempt to play music immediately
+        this.soundManager.playMusic();
+
+        // Add one-time interaction listener to start music if autoplay blocked it
+        const startMusicOnInteraction = () => {
+            if (this.soundManager.isMusicEnabled() && this.soundManager.isMusicPaused()) {
+                this.soundManager.playMusic();
+            }
+            // Remove listeners once triggers
+            window.removeEventListener('keydown', startMusicOnInteraction);
+            window.removeEventListener('click', startMusicOnInteraction);
+        };
+
+        window.addEventListener('keydown', startMusicOnInteraction);
+        window.addEventListener('click', startMusicOnInteraction);
+
         this.gameLoop();
     }
 
@@ -132,6 +150,19 @@ class Game {
 
         // Update and render based on game state
         if (this.state === 'menu') {
+            // Ensure music is playing in menu (if enabled)
+            // We can try playing strictly once, or just let the manager handle it (it checks state)
+            // But avoiding spamming play() every frame is better.
+            // Ideally we handle this on transition, but for now let's just leave it to manual triggers or transition.
+            // Actually, browser policy requires interaction.
+            // Let's rely on the startGame/endGame transitions for logic, 
+            // but we need to start it initially.
+            // We'll add a one-time check or just start it on first input?
+            // Simpler: Just render and handle input. Input will trigger musicstart if needed or we start it on "Space" from game over.
+            // For initial load, we might need a "Press any key" or just let it start on first click.
+            // Let's add a `playMusic()` call in `renderMenu`'s first pass? No.
+            // Let's just put it in `handleMenuInput` or when returning from game over.
+            // For the *very first* load, we can try to play in `start()`.
             this.renderMenu();
             this.handleMenuInput();
         } else if (this.state === 'playing') {
@@ -642,14 +673,14 @@ class Game {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('P1: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot | \u2193=Hyperspace .=Shield', 20, this.canvas.height - 20);
-            this.ctx.fillText('P2: W=Thrust A/D=Rotate V=Shoot | S=Hyperspace Q=Shield', 20, this.canvas.height - 5);
+            this.ctx.fillText('P1: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot | \u2193=Hyperspace RShift=Shield', 20, this.canvas.height - 20);
+            this.ctx.fillText('P2: W=Thrust A/D=Rotate V=Shoot | S=Hyperspace B=Shield', 20, this.canvas.height - 5);
             this.ctx.restore();
         } else if (this.gameMode === 'ai') {
             this.ctx.save();
             this.ctx.fillStyle = '#888888';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText('Player: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot | \u2193=Hyperspace .=Shield', 20, this.canvas.height - 20);
+            this.ctx.fillText('Player: \u2191=Thrust \u2190/\u2192=Rotate RCtrl=Shoot | \u2193=Hyperspace RShift=Shield', 20, this.canvas.height - 20);
             this.ctx.restore();
         }
 
@@ -762,13 +793,20 @@ class Game {
         this.ctx.fillText('PLAYER 2 CONTROLS:', this.canvas.width / 2, 515);
         this.ctx.font = '18px monospace';
         this.ctx.fillStyle = '#FF88CC';
-        this.ctx.fillText('Move: WAD | Shoot: V | Hyper: S | Shield: Q', this.canvas.width / 2, 540);
+        this.ctx.fillText('Move: WAD | Shoot: V | Hyper: S | Shield: B', this.canvas.width / 2, 540);
 
         // Sound toggle
         this.ctx.font = '20px monospace';
-        this.ctx.fillStyle = this.soundManager.isEnabled() ? '#757575ff' : '#FF0000';
-        const soundStatus = this.soundManager.isEnabled() ? 'ON' : 'OFF';
-        this.ctx.fillText(`Press M: Sound ${soundStatus}`, this.canvas.width / 2, 630);
+
+        // Sound Effects (S)
+        this.ctx.fillStyle = this.soundManager.isSoundEnabled() ? '#757575ff' : '#FF0000';
+        const soundStatus = this.soundManager.isSoundEnabled() ? 'ON' : 'OFF';
+        this.ctx.fillText(`Press S: SFX ${soundStatus}`, this.canvas.width / 2 - 120, 630);
+
+        // Music (M)
+        this.ctx.fillStyle = this.soundManager.isMusicEnabled() ? '#757575ff' : '#FF0000';
+        const musicStatus = this.soundManager.isMusicEnabled() ? 'ON' : 'OFF';
+        this.ctx.fillText(`Press M: Music ${musicStatus}`, this.canvas.width / 2 + 120, 630);
 
         // Author credits
         this.ctx.font = '14px monospace';
@@ -807,8 +845,12 @@ class Game {
             this.hazardsEnabled = !this.hazardsEnabled;
         } else if (this.input.isKeyPressed('5') || this.input.isKeyPressed('Digit5')) {
             this.fuelEnabled = !this.fuelEnabled;
+        } else if (this.input.isKeyPressed('s') || this.input.isKeyPressed('S')) {
+            // S for Sound Effects
+            this.soundManager.toggleSound();
         } else if (this.input.isKeyPressed('m') || this.input.isKeyPressed('M')) {
-            this.soundManager.toggle();
+            // M for Music
+            this.soundManager.toggleMusic();
         }
     }
 
@@ -818,6 +860,9 @@ class Game {
     startGame(mode) {
         this.gameMode = mode;
         this.state = 'playing';
+
+        // Ensure music continues playing (don't stop it!)
+        this.soundManager.playMusic();
 
         // Reset ships
         this.ship1.lives = 5;
@@ -877,6 +922,8 @@ class Game {
         if (this.input.isKeyPressed(' ') || this.input.isKeyPressed('Space')) {
             this.state = 'menu';
             this.gameMode = null;
+            // Ensure music continues or restarts
+            this.soundManager.playMusic();
         }
     }
 }

@@ -59,7 +59,7 @@ class Input {
             thrust: this.isKeyPressed('w'),
             shoot: this.isKeyPressed('v'),
             hyperspace: this.isKeyPressed('s'),
-            shield: this.isKeyPressed('q')
+            shield: this.isKeyPressed('b')
         };
     }
 }

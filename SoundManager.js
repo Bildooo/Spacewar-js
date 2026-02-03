@@ -5,8 +5,10 @@
 
 class SoundManager {
     constructor() {
-        this.enabled = true;
+        this.enabled = true; // Sound effects enabled
+        this.musicEnabled = true; // Music enabled
         this.sounds = {};
+        this.music = null;
         this.volume = 0.3; // Master volume (0-1)
     }
 
@@ -17,6 +19,15 @@ class SoundManager {
         const audio = new Audio(path);
         audio.volume = this.volume;
         this.sounds[name] = audio;
+    }
+
+    /**
+     * Load music file
+     */
+    loadMusic(path) {
+        this.music = new Audio(path);
+        this.music.volume = this.volume;
+        this.music.loop = true;
     }
 
     /**
@@ -35,24 +46,68 @@ class SoundManager {
     }
 
     /**
-     * Toggle sound on/off
+     * Play background music
      */
-    toggle() {
+    playMusic() {
+        if (!this.musicEnabled || !this.music) return;
+
+        // Only play if currently paused to avoid errors/interruptions
+        if (this.music.paused) {
+            this.music.play().catch(err => {
+                console.log('Music play prevented:', err.message);
+            });
+        }
+    }
+
+    /**
+     * Check if music is paused
+     */
+    isMusicPaused() {
+        return this.music && this.music.paused;
+    }
+
+    /**
+     * Stop background music
+     */
+    stopMusic() {
+        if (this.music) {
+            this.music.pause();
+            this.music.currentTime = 0;
+        }
+    }
+
+    /**
+     * Toggle sound effects on/off
+     */
+    toggleSound() {
         this.enabled = !this.enabled;
         return this.enabled;
     }
 
     /**
-     * Set sound enabled state
+     * Toggle music on/off
      */
-    setEnabled(enabled) {
-        this.enabled = enabled;
+    toggleMusic() {
+        this.musicEnabled = !this.musicEnabled;
+        if (this.musicEnabled) {
+            this.playMusic();
+        } else {
+            this.stopMusic();
+        }
+        return this.musicEnabled;
     }
 
     /**
      * Check if sounds are enabled
      */
-    isEnabled() {
+    isSoundEnabled() {
         return this.enabled;
+    }
+
+    /**
+     * Check if music is enabled
+     */
+    isMusicEnabled() {
+        return this.musicEnabled;
     }
 }
