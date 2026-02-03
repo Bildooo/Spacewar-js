@@ -72,7 +72,7 @@ class Ship {
     /**
      * Activate hyperspace drive
      */
-    hyperspace() {
+    hyperspace(soundManager) {
         if (!this.active || this.hyperspaceCooldown > 0 || this.hyperspaceCharges <= 0) return;
 
         // Consume charge
@@ -83,8 +83,13 @@ class Ship {
 
         // 15% chance of mulfunction (explosion)
         if (Math.random() < 0.15) {
-            this.die(); // No sound manager passed, handled in game loop ideally, but this works
+            this.die(soundManager);
             return;
+        }
+
+        // Play hyperspace sound
+        if (soundManager) {
+            soundManager.play('hyperspace');
         }
 
         // Random positions

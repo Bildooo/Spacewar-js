@@ -100,6 +100,7 @@ class Game {
         this.soundManager = new SoundManager();
         this.soundManager.loadSound('laser', 'sounds/laserShoot.wav');
         this.soundManager.loadSound('explosion', 'sounds/explosion_2.wav');
+        this.soundManager.loadSound('hyperspace', 'sounds/soundhyper.wav');
         this.soundManager.loadMusic('sounds/musicSpacewar.mp3');
 
         // AI controller (will be initialized when AI mode is selected)
@@ -111,6 +112,51 @@ class Game {
         // Game loop state
         this.running = false;
         this.lastFrameTime = 0;
+
+        // Infalling background stars
+        this.infallingStars = [];
+        this.initInfallingStars();
+    }
+
+    /**
+     * Initialize infalling stars
+     */
+    initInfallingStars() {
+        for (let i = 0; i < 20; i++) {
+            this.spawnInfallingStar(true);
+        }
+    }
+
+    /**
+     * Spawn a single infalling star
+     * @param {boolean} randomPos If true, spawn anywhere in play area (for init). If false, spawn at edge.
+     */
+    spawnInfallingStar(randomPos = false) {
+        let x, y;
+        if (randomPos) {
+            // Random position within play area, but not too close to sun
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 100 + Math.random() * (this.playAreaRadius - 100);
+            x = this.centerX + Math.cos(angle) * dist;
+            y = this.centerY + Math.sin(angle) * dist;
+        } else {
+            // Spawn at edge
+            const angle = Math.random() * Math.PI * 2;
+            const dist = this.playAreaRadius - 10;
+            x = this.centerX + Math.cos(angle) * dist;
+            y = this.centerY + Math.sin(angle) * dist;
+        }
+
+        this.infallingStars.push({
+            position: new Vector2(x, y),
+            velocity: new Vector2(0, 0), // Starts with zero velocity, gravity will pull it
+            mass: 10, // Small mass so gravity affects it, but maybe needs tuning relative to G
+            // Actually G forces are independent of mass of object (a = F/m = (GMm/r^2)/m = GM/r^2)
+            // So mass doesn't matter for acceleration calculation if we use our physics correctly.
+            // But we need to use calculate acceleration directly or give it mass=1.
+            size: 1 + Math.random() * 2,
+            color: `rgba(255, 255, ${200 + Math.random() * 55}, ${0.5 + Math.random() * 0.5})`
+        });
     }
 
     /**
@@ -189,7 +235,8 @@ class Game {
         if (input1.rotateLeft) this.ship1.rotate(-1);
         if (input1.rotateRight) this.ship1.rotate(1);
         if (input1.thrust) this.ship1.thrust();
-        if (input1.hyperspace) this.ship1.hyperspace();
+        if (input1.thrust) this.ship1.thrust();
+        if (input1.hyperspace) this.ship1.hyperspace(this.soundManager);
         this.ship1.setShield(input1.shield); // Toggle shield
 
         if (input1.shoot) {
@@ -204,7 +251,8 @@ class Game {
         if (input2.rotateLeft) this.ship2.rotate(-1);
         if (input2.rotateRight) this.ship2.rotate(1);
         if (input2.thrust) this.ship2.thrust();
-        if (input2.hyperspace) this.ship2.hyperspace();
+        if (input2.thrust) this.ship2.thrust();
+        if (input2.hyperspace) this.ship2.hyperspace(this.soundManager);
         this.ship2.setShield(input2.shield); // Toggle shield
 
         if (input2.shoot) {
@@ -330,6 +378,9 @@ class Game {
         if (this.hazardsEnabled) {
             this.updateAsteroids();
         }
+
+        // Update infalling stars
+        this.updateInfallingStars();
 
         // Update fuel canisters
         if (this.fuelEnabled) {
@@ -458,6 +509,53 @@ class Game {
     }
 
     /**
+     * Update infalling stars logic
+     */
+    updateInfallingStars() {
+        for (let i = this.infallingStars.length - 1; i >= 0; i--) {
+            const star = this.infallingStars[i];
+
+            // Apply gravity
+            // We can reuse sun.getGravitationalForce, but that returns Force. a = F/m.
+            // Let's assume mass 1 for simplicity.
+            const gravityForce = this.sun.getGravitationalForce(
+                star.position,
+                1, // mass 1
+                this.G
+            );
+
+            // Apply acceleration to velocity
+            star.velocity.add(gravityForce); // F=ma => a=F (if m=1)
+
+            // Update position
+            star.position.add(star.velocity);
+
+            // Check collision/swallowed by sun
+            if (this.sun.isColliding(star.position, star.size)) {
+                // Remove and respawn
+                this.infallingStars.splice(i, 1);
+                this.spawnInfallingStar(false); // Respawn at edge
+            }
+        }
+    }
+
+    /**
+     * Render infalling stars
+     */
+    renderInfallingStars() {
+        this.ctx.save();
+        for (const star of this.infallingStars) {
+            this.ctx.fillStyle = star.color;
+            this.ctx.shadowBlur = star.size * 2;
+            this.ctx.shadowColor = star.color;
+            this.ctx.beginPath();
+            this.ctx.arc(star.position.x, star.position.y, star.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.restore();
+    }
+
+    /**
      * Spawn a new random asteroid
      */
     spawnAsteroid() {
@@ -512,6 +610,9 @@ class Game {
 
         this.ctx.fillStyle = bgGradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Draw infalling stars inside the play area
+        this.renderInfallingStars();
 
         this.ctx.restore();
 
